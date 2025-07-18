@@ -10,6 +10,8 @@ from app.shared.database import init_db
 from app.shared.websocket import websocket_manager, start_websocket_ping_task
 from app.modules.dart.router import router as dart_router
 from app.modules.dart.monitor import start_dart_monitoring, stop_dart_monitoring
+from app.modules.stocks.router import router as stocks_router
+from app.modules.stocks.monitor import start_stock_monitoring, stop_stock_monitoring
 
 # 로깅 설정
 logging.basicConfig(
@@ -38,11 +40,15 @@ async def lifespan(app: FastAPI):
     # DART 모니터링 시작
     await start_dart_monitoring()
     
+    # 주가 모니터링 시작
+    await start_stock_monitoring()
+    
     yield
     
     # 종료 시
     ping_task.cancel()
     await stop_dart_monitoring()
+    await stop_stock_monitoring()
     logger.info("FastAPI 애플리케이션 종료")
 
 
@@ -90,7 +96,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # 라우터 등록
 app.include_router(dart_router, prefix="/api/dart", tags=["dart"])
-# app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
+app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 # app.include_router(portfolio_router, prefix="/api/portfolio", tags=["portfolio"])
 
 
