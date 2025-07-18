@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+const WS_URL = (import.meta as any).env.VITE_WS_URL || 'ws://localhost:8000'
 
 interface WebSocketMessage {
   type: string
@@ -21,7 +21,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
   const [isConnected, setIsConnected] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<UseWebSocketReturn['connectionStatus']>('disconnected')
   const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
   const reconnectAttempts = useRef(0)
   const maxReconnectAttempts = 5
 
@@ -52,6 +52,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
               message: message.data.report_nm,
               priority: message.data.priority_score >= 3 ? 'high' : 'medium',
               timestamp: new Date().toISOString(),
+              isRead: false,
               data: message.data,
             })
           }
@@ -72,6 +73,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
                 message: message.data.message,
                 priority,
                 timestamp: new Date().toISOString(),
+                isRead: false,
                 data: message.data,
               })
             }
@@ -95,6 +97,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
                 message: message.data.message || '시스템 상태가 변경되었습니다.',
                 priority: 'high',
                 timestamp: new Date().toISOString(),
+                isRead: false,
                 data: message.data,
               })
             }
@@ -109,6 +112,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
               message: message.data.message,
               priority: 'high',
               timestamp: new Date().toISOString(),
+              isRead: false,
               data: message.data,
             })
           }
@@ -133,6 +137,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
             message: message.data?.error || 'WebSocket 연결에 오류가 발생했습니다.',
             priority: 'high',
             timestamp: new Date().toISOString(),
+            isRead: false,
             data: message.data,
           })
           break
@@ -169,6 +174,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
           message: '실시간 모니터링이 시작되었습니다.',
           priority: 'low',
           timestamp: new Date().toISOString(),
+          isRead: false,
         })
       }
       
@@ -196,6 +202,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
             message: '서버와의 연결이 중단되었습니다. 페이지를 새로고침 해주세요.',
             priority: 'high',
             timestamp: new Date().toISOString(),
+            isRead: false,
           })
         }
       }
@@ -210,6 +217,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
           message: '서버와의 연결에 문제가 발생했습니다.',
           priority: 'high',
           timestamp: new Date().toISOString(),
+          isRead: false,
         })
       }
       

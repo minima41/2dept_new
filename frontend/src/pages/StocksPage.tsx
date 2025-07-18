@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { api } from '../services/apiClient'
-import { Plus, Search, Settings, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
+import { Plus, Settings, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
 
 function StocksPage() {
   const [searchQuery, setSearchQuery] = useState('')

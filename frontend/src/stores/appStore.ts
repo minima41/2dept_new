@@ -58,7 +58,7 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   devtools(
     subscribeWithSelector(
-      (set, get) => ({
+      (set) => ({
         // 초기 상태
         isConnected: false,
         connectionStatus: 'disconnected',
@@ -75,7 +75,7 @@ export const useAppStore = create<AppState>()(
         
         // 액션
         setConnectionStatus: (status) => 
-          set((state) => ({
+          set(() => ({
             isConnected: status,
             connectionStatus: status ? 'connected' : 'disconnected',
           })),
@@ -85,18 +85,18 @@ export const useAppStore = create<AppState>()(
             systemStatus: [status, ...state.systemStatus.slice(0, 9)], // 최대 10개 유지
           })),
         
-        addAlert: (alert) => {
-          const newAlert: Alert = {
-            ...alert,
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            isRead: false,
-          }
-          
-          set((state) => ({
-            alerts: [newAlert, ...state.alerts],
-            unreadCount: state.unreadCount + 1,
-          }))
-        },
+        addAlert: (alert) => 
+          set((state) => {
+            const newAlert: Alert = {
+              ...alert,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            }
+            
+            return {
+              alerts: [newAlert, ...state.alerts.slice(0, 99)], // 최대 100개 유지
+              unreadCount: state.unreadCount + 1,
+            }
+          }),
         
         markAlertAsRead: (id) =>
           set((state) => {
@@ -151,10 +151,7 @@ export const useAppStore = create<AppState>()(
               lastUpdateTime: time,
             },
           })),
-      }),
-      {
-        name: 'app-store',
-      }
+      })
     )
   )
 )
