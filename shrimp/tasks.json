@@ -1,0 +1,421 @@
+{
+  "tasks": [
+    {
+      "id": "874886ab-0edf-437f-b0cf-1b6bc0b2eaf0",
+      "name": "프로젝트 기반 구조 및 개발 환경 설정",
+      "description": "React + FastAPI 모듈러 모놀리스 아키텍처의 기본 폴더 구조를 생성하고 개발 환경을 설정합니다. Docker 컨테이너, 환경변수, 기본 설정 파일들을 준비합니다.",
+      "notes": "shrimp-rules.md의 아키텍처 표준을 엄격히 준수. 기존 첨부 파일의 API 키 및 설정 정보 활용.",
+      "status": "pending",
+      "dependencies": [],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\main.py",
+          "type": "CREATE",
+          "description": "FastAPI 메인 애플리케이션"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\config.py",
+          "type": "CREATE",
+          "description": "설정 관리 모듈"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\package.json",
+          "type": "CREATE",
+          "description": "React 프로젝트 설정"
+        },
+        {
+          "path": "C:\\2dept\\docker-compose.yml",
+          "type": "CREATE",
+          "description": "Docker 컨테이너 오케스트레이션"
+        },
+        {
+          "path": "C:\\2dept\\.env",
+          "type": "CREATE",
+          "description": "환경변수 설정"
+        }
+      ],
+      "implementationGuide": "1. C:\\2dept\\backend\\ 및 C:\\2dept\\frontend\\ 폴더 구조 생성\\n2. FastAPI 기본 앱 (main.py) 및 설정 파일 (config.py) 생성\\n3. React + TypeScript + Vite 프로젝트 초기화\\n4. Docker Compose 파일 및 Dockerfile 작성\\n5. requirements.txt, package.json 의존성 설정\\n6. 환경변수 파일 (.env) 및 보안 설정\\n7. 로그 디렉토리 (C:\\2dept\\logs) 생성",
+      "verificationCriteria": "Docker Compose로 프론트엔드와 백엔드가 정상 실행되고, http://localhost:3000 (프론트엔드), http://localhost:8000 (백엔드) 접속 가능. 환경변수 로딩 및 로그 파일 생성 확인.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "b6b06546-f312-493a-882b-1680bba57f8b",
+      "name": "공통 모듈 및 WebSocket 통신 구현",
+      "description": "데이터베이스 연결, 인증, 이메일 발송, WebSocket 관리 등 모든 모듈이 공유하는 핵심 기능들을 구현합니다. 실시간 통신의 기반이 되는 WebSocket 이벤트 시스템을 구축합니다.",
+      "notes": "기존 config.py의 이메일 설정(EMAIL_SENDER, EMAIL_PASSWORD) 재사용. WebSocket은 최대 50개 연결 지원하도록 제한.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "874886ab-0edf-437f-b0cf-1b6bc0b2eaf0"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\shared\\database.py",
+          "type": "CREATE",
+          "description": "데이터베이스 연결 관리"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\shared\\auth.py",
+          "type": "CREATE",
+          "description": "JWT 인증 시스템"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\shared\\email.py",
+          "type": "CREATE",
+          "description": "이메일 발송 유틸리티"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\shared\\websocket.py",
+          "type": "CREATE",
+          "description": "WebSocket 연결 관리"
+        },
+        {
+          "path": "config.py",
+          "type": "REFERENCE",
+          "description": "기존 이메일 및 API 설정"
+        }
+      ],
+      "implementationGuide": "1. shared/database.py - SQLite 연결 및 ORM 설정\\n2. shared/auth.py - JWT 토큰 기반 간단한 인증\\n3. shared/email.py - 기존 dart_monitor.py의 이메일 발송 로직 활용\\n4. shared/websocket.py - FastAPI WebSocket 매니저 구현\\n5. 기본 데이터베이스 스키마 생성 (users, alert_history 테이블)\\n6. WebSocket 이벤트 타입 정의 (dart_update, stock_update, alert_triggered)\\n7. 로깅 설정 및 에러 핸들링 표준화",
+      "verificationCriteria": "WebSocket 연결 테스트 성공, 이메일 발송 테스트 성공, JWT 토큰 생성/검증 기능 동작, SQLite 데이터베이스 연결 및 기본 테이블 생성 완료.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "b5c7ab02-cfec-4507-8a58-65d1ba6d75ef",
+      "name": "DART 공시 모니터링 모듈 구현",
+      "description": "기존 dart_monitor.py의 핵심 로직을 FastAPI 서비스로 전환합니다. DART OpenAPI를 통한 공시 수집, 키워드 필터링, 실시간 알림 기능을 웹 API로 구현합니다.",
+      "notes": "DART API 키 d63d0566355b527123f1d14cf438c84041534b2b 사용. KEYWORDS 리스트 기반 필터링 유지. 30분 간격(CHECK_INTERVAL=1800) 준수.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b6b06546-f312-493a-882b-1680bba57f8b"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\dart\\models.py",
+          "type": "CREATE",
+          "description": "공시 데이터 모델"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\dart\\service.py",
+          "type": "CREATE",
+          "description": "공시 모니터링 비즈니스 로직"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\dart\\router.py",
+          "type": "CREATE",
+          "description": "공시 API 엔드포인트"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\dart\\monitor.py",
+          "type": "CREATE",
+          "description": "백그라운드 모니터링 스케줄러"
+        },
+        {
+          "path": "dart_monitor.py",
+          "type": "REFERENCE",
+          "description": "기존 DART 모니터링 로직"
+        },
+        {
+          "path": "config.py",
+          "type": "REFERENCE",
+          "description": "DART API 키 및 설정"
+        }
+      ],
+      "implementationGuide": "1. modules/dart/models.py - DartDisclosure Pydantic 모델 정의\\n2. modules/dart/service.py - 기존 check_new_disclosures() 로직을 async 함수로 변환\\n3. modules/dart/router.py - FastAPI 라우터 (/api/dart/disclosures, /api/dart/keywords)\\n4. modules/dart/monitor.py - APScheduler로 30분 간격 백그라운드 모니터링\\n5. 기존 processed_ids.txt, 관심 기업 목록 (COMPANIES) 활용\\n6. WebSocket을 통한 새 공시 실시간 브로드캐스트\\n7. 이메일 알림 통합 (기존 send_email 로직 재사용)",
+      "verificationCriteria": "DART API 호출 성공, 새 공시 감지 및 WebSocket 브로드캐스트 동작, 이메일 알림 발송 성공, APScheduler 백그라운드 작업 정상 실행, processed_ids.txt 파일 관리 기능 동작.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "ac5180d7-403e-4f6d-aa79-2efa6f8f1916",
+      "name": "주가 모니터링 모듈 구현",
+      "description": "기존 simple_stock_manager.py의 주가 모니터링 로직을 웹 서비스로 전환합니다. PyKrx API와 네이버 크롤링을 활용한 실시간 주가 업데이트, TP/SL 알림, 일일 급등락 알림 기능을 구현합니다.",
+      "notes": "장중(09:00-15:35)에만 주가 업데이트. triggered_alerts set 관리 방식 유지. 일일 급등락 알림 임계값 설정 지원.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b6b06546-f312-493a-882b-1680bba57f8b"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\models.py",
+          "type": "CREATE",
+          "description": "주가 데이터 모델"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\service.py",
+          "type": "CREATE",
+          "description": "주가 모니터링 비즈니스 로직"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\router.py",
+          "type": "CREATE",
+          "description": "주가 API 엔드포인트"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\monitor.py",
+          "type": "CREATE",
+          "description": "실시간 주가 업데이트 스케줄러"
+        },
+        {
+          "path": "simple_stock_manager_integrated.py",
+          "type": "REFERENCE",
+          "description": "기존 주가 모니터링 로직"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\data\\monitoring_stocks.json",
+          "type": "CREATE",
+          "description": "관심 종목 데이터"
+        }
+      ],
+      "implementationGuide": "1. modules/stocks/models.py - Stock, StockAlert Pydantic 모델 정의\\n2. modules/stocks/service.py - 기존 get_stock_price(), check_price_alerts() 로직 활용\\n3. modules/stocks/router.py - 주가 관련 API 엔드포인트 구현\\n4. modules/stocks/monitor.py - 5-10초 간격 주가 업데이트 백그라운드 작업\\n5. monitoring_stocks.json 파일 관리 (기존 구조 유지)\\n6. PyKrx 우선, 실패 시 네이버 크롤링 폴백 로직\\n7. WebSocket을 통한 실시간 주가 업데이트 브로드캐스트",
+      "verificationCriteria": "PyKrx API 호출 성공, 네이버 크롤링 폴백 동작, 실시간 주가 WebSocket 업데이트 확인, TP/SL 알림 트리거 동작, monitoring_stocks.json 파일 읽기/쓰기 정상 동작.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "dd4e2d66-41d0-4d57-b7d4-b8668eef3ff3",
+      "name": "React 대시보드 및 기본 UI 구현",
+      "description": "React + TypeScript 기반의 메인 대시보드와 네비게이션, 기본 UI 컴포넌트들을 구현합니다. 실시간 WebSocket 통신을 위한 커스텀 훅과 상태 관리를 설정합니다.",
+      "notes": "Tailwind CSS 유틸리티 클래스만 사용. 함수형 컴포넌트 + 훅스 패턴 준수. TypeScript strict 모드 활성화.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b6b06546-f312-493a-882b-1680bba57f8b"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\App.tsx",
+          "type": "CREATE",
+          "description": "메인 앱 컴포넌트 및 라우터"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\pages\\DashboardPage.tsx",
+          "type": "CREATE",
+          "description": "통합 대시보드 페이지"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
+          "type": "CREATE",
+          "description": "WebSocket 통신 커스텀 훅"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\stores\\appStore.ts",
+          "type": "CREATE",
+          "description": "Zustand 상태 관리"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\services\\apiClient.ts",
+          "type": "CREATE",
+          "description": "API 호출 클라이언트"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\tailwind.config.js",
+          "type": "CREATE",
+          "description": "Tailwind CSS 설정"
+        }
+      ],
+      "implementationGuide": "1. React Router 설정 및 기본 레이아웃 컴포넌트\\n2. Tailwind CSS 설정 및 기본 스타일링\\n3. Zustand 상태 관리 스토어 설정\\n4. React Query 설정 및 API 클라이언트\\n5. useWebSocket 커스텀 훅 구현\\n6. DashboardPage.tsx - 통합 대시보드 (공시/주가 요약 위젯)\\n7. 네비게이션 메뉴 및 라우팅 설정",
+      "verificationCriteria": "React 앱 정상 실행, 대시보드 페이지 렌더링 성공, WebSocket 연결 및 실시간 데이터 수신 확인, 반응형 UI 동작, TypeScript 컴파일 에러 없음.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "d7bb18c9-8aac-4fc8-99ab-1a4247ce4d30",
+      "name": "DART 공시 모니터링 프론트엔드 구현",
+      "description": "DART 공시 모니터링 전용 페이지를 구현합니다. 실시간 공시 목록, 키워드 필터링, 상세 보기, 알림 설정 기능을 포함한 사용자 인터페이스를 제공합니다.",
+      "notes": "실시간 업데이트는 WebSocket 이벤트 'dart_update' 타입 구독. 중요 키워드 포함 공시는 강조 표시.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "b5c7ab02-cfec-4507-8a58-65d1ba6d75ef"
+        },
+        {
+          "taskId": "dd4e2d66-41d0-4d57-b7d4-b8668eef3ff3"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\pages\\DartPage.tsx",
+          "type": "CREATE",
+          "description": "DART 공시 모니터링 페이지"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\components\\dart\\DisclosureList.tsx",
+          "type": "CREATE",
+          "description": "공시 목록 컴포넌트"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\services\\dartApi.ts",
+          "type": "CREATE",
+          "description": "DART API 호출 서비스"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\types\\dart.ts",
+          "type": "CREATE",
+          "description": "DART 관련 TypeScript 타입"
+        }
+      ],
+      "implementationGuide": "1. pages/DartPage.tsx - 공시 모니터링 메인 페이지\\n2. components/dart/DisclosureList.tsx - 공시 목록 컴포넌트\\n3. components/dart/DisclosureItem.tsx - 개별 공시 항목\\n4. components/dart/KeywordFilter.tsx - 키워드 필터링 UI\\n5. services/dartApi.ts - DART API 호출 함수들\\n6. WebSocket을 통한 실시간 공시 업데이트 처리\\n7. 공시 상세 모달 및 DART 원문 링크 연동",
+      "verificationCriteria": "DART 페이지 정상 렌더링, 공시 목록 API 호출 성공, 실시간 공시 업데이트 확인, 키워드 필터링 동작, 공시 상세 모달 표시 성공.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "e5cacb7e-d5b9-4417-86c1-9d7f079bf948",
+      "name": "주가 모니터링 프론트엔드 구현",
+      "description": "주가 모니터링 전용 페이지를 구현합니다. 실시간 주가 테이블, 종목 추가/삭제, 알림 설정, 가격 차트 등의 기능을 포함한 사용자 인터페이스를 제공합니다.",
+      "notes": "가격 변동에 따른 색상 변화 (상승: 빨강, 하락: 파랑). TP/SL 알림 설정 UI 제공. 실시간 업데이트는 'stock_update' 이벤트 구독.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "ac5180d7-403e-4f6d-aa79-2efa6f8f1916"
+        },
+        {
+          "taskId": "dd4e2d66-41d0-4d57-b7d4-b8668eef3ff3"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\pages\\StocksPage.tsx",
+          "type": "CREATE",
+          "description": "주가 모니터링 페이지"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\components\\stocks\\StockTable.tsx",
+          "type": "CREATE",
+          "description": "실시간 주가 테이블"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\components\\stocks\\AddStockForm.tsx",
+          "type": "CREATE",
+          "description": "종목 추가 폼"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\services\\stocksApi.ts",
+          "type": "CREATE",
+          "description": "주가 API 호출 서비스"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\types\\stocks.ts",
+          "type": "CREATE",
+          "description": "주가 관련 TypeScript 타입"
+        }
+      ],
+      "implementationGuide": "1. pages/StocksPage.tsx - 주가 모니터링 메인 페이지\\n2. components/stocks/StockTable.tsx - 실시간 주가 테이블\\n3. components/stocks/AddStockForm.tsx - 종목 추가 폼\\n4. components/stocks/AlertSettings.tsx - 알림 설정 컴포넌트\\n5. services/stocksApi.ts - 주가 API 호출 함수들\\n6. Recharts를 활용한 간단한 가격 차트\\n7. WebSocket을 통한 실시간 주가 업데이트 처리",
+      "verificationCriteria": "주가 페이지 정상 렌더링, 실시간 주가 업데이트 확인, 종목 추가/삭제 기능 동작, 알림 설정 저장 성공, 가격 차트 표시 정상 동작.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "f4d4c087-551d-4b52-beae-0fcc28a06acf",
+      "name": "포트폴리오 통합 관리 기능 구현",
+      "description": "모든 관심 종목을 통합 관리하고 DART/주가 알림을 간편하게 ON/OFF할 수 있는 포트폴리오 관리 페이지를 구현합니다. 실시간 시세 확인 및 종합 수익률 추적 기능을 제공합니다.",
+      "notes": "기존 monitoring_stocks.json 데이터 활용. 알림 설정 변경 시 즉시 반영. 수익률 계산은 취득가 기준.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "ac5180d7-403e-4f6d-aa79-2efa6f8f1916"
+        },
+        {
+          "taskId": "b5c7ab02-cfec-4507-8a58-65d1ba6d75ef"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\portfolio\\models.py",
+          "type": "CREATE",
+          "description": "포트폴리오 데이터 모델"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\portfolio\\service.py",
+          "type": "CREATE",
+          "description": "포트폴리오 관리 로직"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\portfolio\\router.py",
+          "type": "CREATE",
+          "description": "포트폴리오 API"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\pages\\PortfolioPage.tsx",
+          "type": "CREATE",
+          "description": "포트폴리오 관리 페이지"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\services\\portfolioApi.ts",
+          "type": "CREATE",
+          "description": "포트폴리오 API 호출"
+        }
+      ],
+      "implementationGuide": "1. modules/portfolio/models.py - Portfolio, PortfolioItem 모델\\n2. modules/portfolio/service.py - 포트폴리오 관리 비즈니스 로직\\n3. modules/portfolio/router.py - 포트폴리오 API 엔드포인트\\n4. pages/PortfolioPage.tsx - 포트폴리오 관리 페이지\\n5. 종목별 알림 ON/OFF 토글 기능\\n6. 전체 포트폴리오 수익률 계산 및 표시\\n7. 실시간 시세 종합 대시보드",
+      "verificationCriteria": "포트폴리오 페이지 정상 렌더링, 종목 통합 조회 성공, 알림 ON/OFF 토글 동작, 수익률 계산 정확성 확인, 실시간 시세 업데이트 반영.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    },
+    {
+      "id": "a09ae08b-3a52-472f-b811-f903f58950eb",
+      "name": "시스템 통합 테스트 및 배포 준비",
+      "description": "전체 시스템의 통합 테스트를 수행하고 Docker 기반 배포 환경을 완성합니다. 성능 최적화, 에러 처리, 로깅, 모니터링 기능을 강화하여 운영 환경에 대비합니다.",
+      "notes": "10명 동시 접속 시나리오 테스트. 로그 파일 5MB 로테이션 설정. 헬스체크 엔드포인트 구현.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "f4d4c087-551d-4b52-beae-0fcc28a06acf"
+        },
+        {
+          "taskId": "e5cacb7e-d5b9-4417-86c1-9d7f079bf948"
+        },
+        {
+          "taskId": "d7bb18c9-8aac-4fc8-99ab-1a4247ce4d30"
+        }
+      ],
+      "createdAt": "2025-07-18T01:33:18.276Z",
+      "updatedAt": "2025-07-18T01:33:18.276Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\docker-compose.prod.yml",
+          "type": "CREATE",
+          "description": "운영 환경 Docker 설정"
+        },
+        {
+          "path": "C:\\2dept\\tests\\test_integration.py",
+          "type": "CREATE",
+          "description": "통합 테스트"
+        },
+        {
+          "path": "C:\\2dept\\docs\\USER_MANUAL.md",
+          "type": "CREATE",
+          "description": "사용자 매뉴얼"
+        },
+        {
+          "path": "C:\\2dept\\docs\\DEPLOYMENT_GUIDE.md",
+          "type": "CREATE",
+          "description": "배포 가이드"
+        },
+        {
+          "path": "C:\\2dept\\scripts\\health_check.py",
+          "type": "CREATE",
+          "description": "헬스체크 스크립트"
+        }
+      ],
+      "implementationGuide": "1. Docker Compose 운영 환경 설정 완성\\n2. 백엔드/프론트엔드 통합 테스트 작성\\n3. WebSocket 연결 안정성 테스트\\n4. 외부 API (DART, PyKrx) 장애 시나리오 테스트\\n5. 로그 로테이션 및 모니터링 설정\\n6. 성능 최적화 (메모리 사용량, API 응답 시간)\\n7. 사용자 매뉴얼 및 설치 가이드 작성",
+      "verificationCriteria": "전체 시스템 Docker 배포 성공, 통합 테스트 모두 통과, 10명 동시 접속 테스트 성공, 24시간 연속 운영 안정성 확인, 모든 기능 정상 동작 검증.",
+      "analysisResult": "투자본부 React + FastAPI 웹 애플리케이션 구축: 기존 Python 스크립트를 통합한 실시간 모니터링 시스템. 모듈러 모놀리스 아키텍처로 5개 핵심 모듈(DART 공시, 주가 알림, 포트폴리오 관리, 펀드/조합 관리, 키워드 관리) 구현. 10명 동시 접속, WebSocket 실시간 통신, 12-16주 MVP 완성."
+    }
+  ]
+}
