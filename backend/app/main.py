@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.shared.database import init_db
-from app.shared.websocket import WebSocketManager
+from app.shared.websocket import websocket_manager, start_websocket_ping_task
 
 # 로깅 설정
 logging.basicConfig(
@@ -21,9 +21,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# WebSocket 매니저
-websocket_manager = WebSocketManager()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,8 +28,15 @@ async def lifespan(app: FastAPI):
     # 시작 시
     logger.info("FastAPI 애플리케이션 시작")
     await init_db()
+    
+    # WebSocket ping 태스크 시작
+    import asyncio
+    ping_task = asyncio.create_task(start_websocket_ping_task())
+    
     yield
+    
     # 종료 시
+    ping_task.cancel()
     logger.info("FastAPI 애플리케이션 종료")
 
 
