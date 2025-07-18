@@ -1,4 +1,184 @@
-# 투자본부 React + FastAPI 웹 애플리케이션 개발 가이드라인
+# 2dept 투자본부 모니터링 시스템 개발 규칙
+
+## 프로젝트 개요
+
+- **프로젝트명**: 투자본부 React 기반 로컬 웹 애플리케이션
+- **기술 스택**: FastAPI (백엔드) + React (프론트엔드)
+- **아키텍처**: 모듈러 모놀리스 패턴
+- **주요 기능**: 주식/공시/뉴스 모니터링, 펀드 관리, 실시간 알림
+- **프로젝트 루트**: C:\2dept
+
+## 프로젝트 아키텍처
+
+### 디렉토리 구조
+
+```
+C:\2dept
+├── backend/
+│   ├── app/
+│   │   ├── main.py (FastAPI 애플리케이션 진입점)
+│   │   ├── config.py (환경 설정)
+│   │   ├── modules/
+│   │   │   ├── dart/ (공시 모니터링)
+│   │   │   ├── stocks/ (주가 모니터링)
+│   │   │   └── shared/ (공통 모듈)
+│   │   └── data/ (데이터 파일)
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   ├── components/
+│   │   └── services/
+│   └── package.json
+├── logs/ (로그 파일 저장)
+└── .git/
+```
+
+### 모듈 구조 규칙
+
+- **절대 경로 import 사용**: `from app.modules.dart import monitor`
+- **모듈러 모놀리스 패턴**: 기능별 모듈로 분리하되 단일 애플리케이션으로 배포
+- **공통 모듈**: `app/modules/shared/`에 데이터베이스, WebSocket 등 공통 기능 배치
+
+## 실행 및 환경 설정 규칙
+
+### **⚠️ 중요: 올바른 실행 방법**
+
+- **금지**: `python app/main.py` 직접 실행 (ModuleNotFoundError 발생)
+- **필수**: `uvicorn app.main:app --reload` 사용
+- **실행 디렉토리**: 반드시 `C:\2dept\backend` 에서 실행
+
+### 패키지 관리
+
+- **의존성 설치**: `pip install -r requirements.txt`
+- **가상환경 권장**: `python -m venv venv` 후 활성화
+- **버전 호환성**: FastAPI 0.104.1, Starlette 0.27.0, AnyIO 3.7+ 조합 유지
+
+## 코드 수정 규칙
+
+### **⚠️ 필수: edit-file-lines 사용법**
+
+- **반드시 dryRun: true로 먼저 검증**
+- **파일 수정 전 해당 부분 확인**: `get_file_lines` 또는 `search_file` 사용
+- **3-5개 섹션으로 나누어 수정**: 한 번에 큰 파일 전체 수정 금지
+
+### 파일 수정 워크플로우
+
+1. **파일 내용 확인**: 수정할 부분 주변 라인 확인
+2. **dryRun 검증**: `"dryRun": true`로 변경사항 미리보기
+3. **승인 후 적용**: `approve_edit` 도구로 실제 적용
+4. **결과 검증**: 수정 후 해당 라인 재확인
+
+## 기존 코드 통합 규칙
+
+### dart_monitor.py 통합
+
+- **위치**: `backend/app/modules/dart/monitor.py`로 이동
+- **구조 변경**: 함수 기반으로 리팩토링 (클래스 생성 권장)
+- **설정 분리**: `config.py`에서 DART_API_KEY, COMPANIES 등 관리
+- **WebSocket 통합**: 새로운 공시 발견 시 실시간 알림
+
+### simple_stock_manager_integrated.py 통합
+
+- **위치**: `backend/app/modules/stocks/manager.py`로 이동
+- **GUI 제거**: tkinter 관련 코드 제거, API 엔드포인트로 대체
+- **상태 관리**: 웹 애플리케이션 상태 관리로 변경
+- **실시간 업데이트**: WebSocket으로 주가 변동 실시간 전송
+
+### 통합 시 주의사항
+
+- **로그 경로**: `C:\2dept\logs`에 저장
+- **데이터 파일**: `backend/app/data/`에 JSON 파일 저장
+- **이메일 설정**: 통합 알림 모듈로 관리
+- **스케줄러**: APScheduler 사용하여 백그라운드 작업 관리
+
+## Git 워크플로우 규칙
+
+### **⚠️ 필수: Git 작업 절차**
+
+1. **Git 저장소 확인**: `.git` 폴더 없으면 `git init` 실행
+2. **브랜치 생성**: `git checkout -b test` (테스트 브랜치)
+3. **파일 수정 후**: `git add .` 및 `git commit -m "설명"`
+4. **테스트 검증**: test 브랜치에서 충분한 테스트
+5. **master 병합**: `git checkout master` → `git merge test`
+
+### 커밋 메시지 규칙
+
+- **feat**: 새로운 기능 추가
+- **fix**: 버그 수정
+- **refactor**: 코드 리팩토링
+- **test**: 테스트 추가/수정
+- **docs**: 문서 수정
+
+## 테스트 및 검증 규칙
+
+### 백엔드 테스트
+
+- **서버 실행**: `uvicorn app.main:app --reload`
+- **API 테스트**: `curl http://localhost:8000/health`
+- **로그 확인**: `C:\2dept\logs\app.log` 에러 확인
+
+### 프론트엔드 테스트
+
+- **개발 서버**: `npm start` (포트 3000)
+- **빌드 테스트**: `npm run build`
+- **CORS 확인**: 백엔드 API 호출 정상 여부 확인
+
+## 금지사항 및 제한사항
+
+### **⚠️ 절대 금지**
+
+- **직접 실행 금지**: `python app/main.py` 사용 금지
+- **dryRun 없이 수정 금지**: `edit-file-lines` 사용 시 반드시 dryRun 먼저
+- **Git 작업 생략 금지**: 모든 파일 수정 후 반드시 commit
+- **테스트 생략 금지**: 코드 수정 후 반드시 실행 테스트
+- **임의 삭제 금지**: shrimp 작업 삭제 시 반드시 사용자 동의
+
+### **⚠️ 주의사항**
+
+- **경로 문제**: WSL 경로(`/mnt/c/`) 사용 금지, Windows 경로(`C:\`) 사용
+- **의존성 충돌**: requirements.txt 버전 임의 변경 금지
+- **포트 충돌**: 백엔드 8000, 프론트엔드 3000 포트 사용
+- **로그 용량**: 로그 파일 크기 5MB 초과 시 로테이션 적용
+
+## AI 결정 기준
+
+### 우선순위
+
+1. **안정성**: 기존 동작 중인 코드 영향 최소화
+2. **호환성**: Windows 환경 호환성 우선
+3. **모듈성**: 모듈러 모놀리스 구조 유지
+4. **테스트 가능성**: 검증 가능한 단위로 작업 분할
+
+### 의사결정 트리
+
+```
+문제 발생
+├── 실행 오류 → uvicorn 사용법 확인
+├── 모듈 오류 → import 경로 확인
+├── 파일 수정 → dryRun 검증
+└── 기능 추가 → 모듈러 구조 적용
+```
+
+## 주요 파일 상호작용 규칙
+
+### 동시 수정 필요 파일
+
+- **config.py 수정 시**: `main.py`에서 import 확인
+- **모듈 추가 시**: `__init__.py` 파일 생성
+- **API 엔드포인트 추가 시**: `main.py`에 라우터 등록
+- **데이터 모델 변경 시**: 관련 모든 모듈 확인
+
+### 파일 간 의존성
+
+- **main.py** → 모든 라우터 및 모듈 import
+- **config.py** → 환경설정 (API 키, 데이터베이스 설정)
+- **modules/shared/** → 공통 기능 (데이터베이스, WebSocket)
+- **modules/dart/**, **modules/stocks/** → 각 도메인별 기능
+
+---
+
+**이 규칙 문서는 AI Agent 전용으로 작성되었으며, 모든 개발 작업은 이 규칙을 준수해야 합니다.**
 
 ## 프로젝트 개요
 
