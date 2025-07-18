@@ -14,11 +14,18 @@ from app.modules.stocks.router import router as stocks_router
 from app.modules.stocks.monitor import start_stock_monitoring, stop_stock_monitoring
 
 # 로깅 설정
+import os
+import pathlib
+
+# 로그 디렉토리 생성
+log_dir = pathlib.Path(__file__).parent.parent.parent / "logs"
+log_dir.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/mnt/c/2dept/logs/app.log', encoding='utf-8'),
+        logging.FileHandler(log_dir / 'app.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
