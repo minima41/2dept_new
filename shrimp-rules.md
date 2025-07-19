@@ -1,4 +1,209 @@
-# 투자본부 React 로컬 웹 애플리케이션 개발 규칙
+# Development Guidelines for 2dept Investment Platform
+
+## Project Overview
+
+### Mission
+- **Primary Goal**: 100% restore all features from `simple_stock_manager_integrated.py` and `dart_monitor.py` to React + FastAPI web application
+- **Technology Stack**: React + TypeScript + FastAPI + WebSocket + TailwindCSS
+- **Architecture**: Modular Monolith with real-time monitoring capabilities
+- **Target Users**: Investment team (10 members max) for local network usage
+
+### Current Status
+- **Backend**: Fully implemented with complete monitoring, service, and router layers
+- **Frontend**: Basic implementation exists but missing critical features from original tkinter GUI
+- **Priority**: Frontend feature completion to match original functionality
+
+## Project Architecture
+
+### Directory Structure Rules
+- **Backend Modules**: `backend/app/modules/{dart,stocks,funds,keywords,portfolio}/`
+- **Each Module Contains**: `router.py`, `service.py`, `models.py`, `monitor.py`
+- **Frontend Pages**: `frontend/src/pages/` with PascalCase naming (e.g., `StocksPage.tsx`)
+- **Frontend Components**: `frontend/src/components/` organized by feature
+- **Shared Utilities**: `frontend/src/services/apiClient.ts` for centralized API calls
+
+### Module Interaction Rules
+- **Backend services** already implemented - DO NOT modify core logic
+- **WebSocket events** managed through `shared/websocket.py`
+- **Real-time updates** must use WebSocket subscription pattern
+- **API calls** must go through service layer, never direct database access
+
+## Code Standards
+
+### Naming Conventions
+- **React Components**: PascalCase with `.tsx` extension
+- **API Methods**: camelCase in `apiClient.ts`
+- **Backend Files**: snake_case for Python modules
+- **WebSocket Events**: snake_case for event names
+- **CSS Classes**: TailwindCSS utility classes only
+
+### TypeScript Requirements
+- **All components** must be TypeScript with proper interface definitions
+- **Props interfaces** must be defined for reusable components
+- **API response types** must be defined in `src/types/`
+- **No `any` types** - use proper type definitions
+
+### Styling Standards
+- **Primary Framework**: TailwindCSS utility classes
+- **Theme Support**: Must support light/dark/prompt themes
+- **Responsive Design**: Mobile-first approach with responsive utilities
+- **NO external UI libraries** - use existing `src/components/ui/` components
+
+## Functionality Implementation Standards
+
+### Critical Missing Features (Priority Order)
+1. **Real-time Log Display Component** (LogTextHandler web equivalent)
+2. **Theme Toggle System** (light/dark/prompt themes)
+3. **Parity Calculation Display** (for mezzanine stocks using conversion_price)
+4. **Stock Category Filter** (mezzanine/other classification)
+5. **Daily Alert Settings UI** (daily_alert_enabled, up/down thresholds)
+6. **Complete Stock Settings Modal** (conversion_price, acquisition_price, auto-calculation)
+7. **Alert History Page** (notifications.json display)
+8. **Refresh Interval Controls** (30s/60s/300s options)
+9. **End-of-day Summary Email** (auto-send at 15:35-15:40)
+10. **Detailed Stock Information** (current_price, change_rate, parity, profit_loss)
+
+### Feature Implementation Rules
+- **Preserve Original Logic**: Copy exact calculations from `simple_stock_manager_integrated.py`
+- **Web Adaptation**: Adapt tkinter UI patterns to React components
+- **Real-time Updates**: Every feature must support WebSocket real-time updates
+- **Error Handling**: Include loading states, error states, and retry mechanisms
+
+### Parity Calculation Requirements
+- **Formula**: `(current_price / conversion_price) * 100`
+- **Display**: Show percentage with 2 decimal places
+- **Color Coding**: Green if >= 100%, Red if < 100%
+- **Floor Calculation**: Support conversion_price_floor for alternative calculation
+
+## Framework Usage Standards
+
+### React Query Implementation
+- **Data Fetching**: Use `useQuery` for GET operations
+- **Mutations**: Use `useMutation` for POST/PUT/DELETE operations
+- **Refetch Intervals**: Configure based on data type (10s for stocks, 30s for other)
+- **Cache Management**: Implement proper cache invalidation on mutations
+
+### WebSocket Integration
+- **Connection Management**: Single WebSocket connection per client
+- **Event Subscription**: Component-level subscription to relevant events
+- **Reconnection Logic**: Automatic reconnection with exponential backoff
+- **Event Types**: `stock_price_update`, `dart_alert`, `system_status`, `log_message`
+
+### State Management Rules
+- **Server State**: React Query for API data
+- **WebSocket State**: Context API for real-time data
+- **UI State**: Local component state with useState
+- **Global Settings**: Context API for theme, user preferences
+
+## Workflow Standards
+
+### Development Process
+1. **Analyze Original Feature**: Study `simple_stock_manager_integrated.py` implementation
+2. **Check Backend API**: Verify required endpoints exist in backend services
+3. **Create Component**: Build React component with TypeScript
+4. **Add API Integration**: Connect to backend through `apiClient.ts`
+5. **Implement WebSocket**: Add real-time updates if needed
+6. **Test Functionality**: Verify feature works identically to original
+7. **Update Routes**: Add to `App.tsx` routing if new page
+
+### Testing Requirements
+- **TypeScript Compilation**: Must pass without errors
+- **Browser Testing**: Test in Chrome/Firefox development mode
+- **WebSocket Verification**: Check connection in browser dev tools
+- **API Testing**: Verify endpoints respond correctly
+- **Cross-component Testing**: Ensure features work together
+
+## File Interaction Standards
+
+### Multi-file Coordination Requirements
+- **New Component** → Update `src/components/index.ts` with export
+- **New Page** → Update `App.tsx` routing configuration
+- **API Changes** → Synchronize `apiClient.ts` with backend router changes
+- **Theme Changes** → Update `tailwind.config.js` + `index.css` + theme context
+- **Type Definitions** → Update all related files in `src/types/`
+
+### Dependency Chain Management
+- **Real-time Logs**: WebSocket → Log Context → Log Component → All Pages
+- **Stock Data**: Backend Service → API Client → React Query → Components
+- **Theme System**: Context Provider → All Pages/Components → CSS Variables
+- **Alert System**: Backend Monitor → WebSocket → Alert Context → UI Notifications
+
+### Critical File Relationships
+- **StocksPage.tsx** ↔ **apiClient.ts** (stocks methods)
+- **Theme Provider** ↔ **All Page Components** (theme consumption)
+- **WebSocket Hook** ↔ **Backend websocket.py** (event synchronization)
+- **Log Component** ↔ **Backend logging system** (real-time log streaming)
+
+## AI Decision-making Standards
+
+### Priority Matrix
+1. **Highest**: Restore original `simple_stock_manager_integrated.py` features
+2. **High**: Fix critical bugs preventing basic functionality
+3. **Medium**: Improve user experience and web-specific enhancements
+4. **Low**: Add new features not in original application
+
+### Conflict Resolution Rules
+- **Original vs Web-friendly**: Adapt to web but preserve functionality
+- **Performance vs Completeness**: Prioritize feature completeness first
+- **Backend vs Frontend**: Make frontend changes, avoid backend modifications
+- **Simple vs Complex**: Choose simpler implementation if functionality identical
+
+### Decision Trees
+- **Missing Feature**: Check backend API → Create frontend component → Add WebSocket if needed
+- **Bug Found**: Check if backend issue → Fix in frontend if possible → Report if backend fix needed
+- **Performance Issue**: Profile first → Optimize frontend → Consider backend only if critical
+
+## Prohibited Actions
+
+### Backend Restrictions
+- **NEVER modify** existing `service.py`, `monitor.py`, `models.py` core logic
+- **NEVER add** direct database queries in frontend
+- **NEVER bypass** service layer for data access
+- **NEVER change** existing API endpoint behavior
+
+### Frontend Restrictions
+- **NEVER add** new UI component libraries
+- **NEVER use** inline styles - only TailwindCSS classes
+- **NEVER ignore** TypeScript errors
+- **NEVER create** components without proper interfaces
+
+### Dependency Restrictions
+- **NEVER add** new npm packages without checking existing alternatives
+- **NEVER modify** existing package.json dependencies
+- **NEVER use** browser-specific APIs without polyfills
+- **NEVER implement** features that require server-side changes
+
+### Code Quality Restrictions
+- **NEVER commit** code with TypeScript compilation errors
+- **NEVER push** untested features
+- **NEVER create** components without loading/error states
+- **NEVER hardcode** values that should be configurable
+
+## Feature Completion Checklist
+
+### 100% Restoration Goal
+- [ ] Real-time log display with auto-scroll and level filtering
+- [ ] Theme toggle: light/dark/prompt with persistence
+- [ ] Stock category system: mezzanine/other with filtering
+- [ ] Parity calculation: conversion_price vs current_price with color coding
+- [ ] Daily alert settings: enable/disable, up/down thresholds
+- [ ] Complete stock modal: all fields from original GUI
+- [ ] Alert history: chronological list with filtering
+- [ ] Refresh intervals: user-configurable update rates
+- [ ] End-of-day email: automated summary at market close
+- [ ] Profit/loss tracking: acquisition_price based calculations
+
+### Verification Standards
+- **Visual Comparison**: Web UI matches original tkinter functionality
+- **Feature Parity**: Every setting/option available in web version
+- **Real-time Performance**: Updates at same frequency as original
+- **Email Integration**: Alerts sent with identical triggers and content
+- **Data Accuracy**: Calculations match original implementation exactly
+
+---
+
+**THIS DOCUMENT IS FOR AI AGENT USE ONLY**
+**Follow these rules strictly to ensure consistent, complete feature restoration**
 
 ## 프로젝트 개요
 
