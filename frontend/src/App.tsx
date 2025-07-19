@@ -26,8 +26,8 @@ function AppContent() {
   const { setConnectionStatus } = useAppStore()
 
   useEffect(() => {
-    // WebSocket 연결
-    connect()
+    // WebSocket 연결 임시 비활성화
+    console.log('WebSocket 연결 비활성화됨')
     
     // 컴포넌트 언마운트 시 연결 해제
     return () => {
