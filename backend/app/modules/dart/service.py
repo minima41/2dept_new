@@ -93,7 +93,29 @@ class DartService:
         page_no: int = 1, 
         page_count: int = 100
     ) -> Optional[DartDisclosureResponse]:
-        """DART API에서 공시 목록 조회"""
+        """
+        DART API에서 공시 목록 조회
+        
+        DART OpenAPI를 사용하여 지정된 기간의 공시 목록을 조회합니다.
+        
+        Args:
+            start_date: 조회 시작일 (YYYYMMDD 형식)
+            end_date: 조회 종료일 (YYYYMMDD 형식)
+            page_no: 페이지 번호 (기본값: 1)
+            page_count: 페이지당 항목 수 (기본값: 100, 최대 100)
+        
+        Returns:
+            Optional[DartDisclosureResponse]: 조회 성공 시 공시 응답 객체, 실패 시 None
+            
+        Raises:
+            requests.RequestException: API 요청 실패 시
+            ValueError: 잘못된 날짜 형식 시
+            
+        Example:
+            >>> disclosures = await dart_service.fetch_disclosures("20231201", "20231231")
+            >>> if disclosures:
+            ...     print(f"조회된 공시 수: {len(disclosures.list)}")
+        """
         try:
             url = f"{self.base_url}/list.json"
             params = {

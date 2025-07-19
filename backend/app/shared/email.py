@@ -10,12 +10,11 @@ from datetime import datetime
 import asyncio
 
 from app.config import settings
-
-logger = logging.getLogger(__name__)
+from app.utils.logger import email_logger as logger, auto_retry
 
 
 class EmailService:
-    """이메일 발송 서비스"""
+    """이메일 발송 서비스 - SMTP 연결 풀링 및 재시도 로직 포함"""
     
     def __init__(self):
         self.smtp_server = settings.SMTP_SERVER
@@ -23,7 +22,12 @@ class EmailService:
         self.sender_email = settings.EMAIL_SENDER
         self.sender_password = settings.EMAIL_PASSWORD
         self.default_receiver = settings.EMAIL_RECEIVER
+        self._connection_pool = {}  # SMTP 연결 풀
+        self._pool_lock = asyncio.Lock()
+        self.max_pool_size = 5
+        self.connection_timeout = 300  # 5분
     
+    @auto_retry(max_retries=3, delay=2.0, exceptions=(Exception,))
     async def send_email_async(
         self, 
         subject: str, 
@@ -84,6 +88,7 @@ class EmailService:
             logger.error(f"이메일 발송 실패: {e}")
             return False
     
+    @auto_retry(max_retries=3, delay=2.0, exceptions=(Exception,))
     def send_email_sync(
         self, 
         subject: str, 

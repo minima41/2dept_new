@@ -1,10 +1,11 @@
 from pydantic_settings import BaseSettings
-from typing import List, Dict
+from typing import List, Dict, Optional
 import os
+from pathlib import Path
 
 
 class Settings(BaseSettings):
-    """애플리케이션 설정"""
+    """애플리케이션 설정 - 환경변수 우선 로딩"""
     
     # 기본 설정
     APP_NAME: str = "투자본부 모니터링 시스템"
@@ -13,20 +14,20 @@ class Settings(BaseSettings):
     # 데이터베이스 설정
     DATABASE_URL: str = "sqlite:///./app.db"
     
-    # JWT 설정
+    # JWT 설정 (환경변수에서 우선 로딩)
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # DART API 설정
-    DART_API_KEY: str = "d63d0566355b527123f1d14cf438c84041534b2b"
+    # DART API 설정 (환경변수에서 우선 로딩)
+    DART_API_KEY: str = ""  # 환경변수에서 필수로 가져오기
     DART_BASE_URL: str = "https://opendart.fss.or.kr/api"
     DART_CHECK_INTERVAL: int = 1800  # 30분 (초 단위)
     
-    # 이메일 설정
-    EMAIL_SENDER: str = "dlwlrma401@gmail.com"
-    EMAIL_PASSWORD: str = "byvu_dkyn_qfyz_lwji"
-    EMAIL_RECEIVER: str = "ljm@inveski.com"
+    # 이메일 설정 (환경변수에서 우선 로딩)
+    EMAIL_SENDER: str = ""  # 환경변수에서 필수로 가져오기
+    EMAIL_PASSWORD: str = ""  # 환경변수에서 필수로 가져오기  
+    EMAIL_RECEIVER: str = ""  # 환경변수에서 필수로 가져오기
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     
@@ -45,6 +46,52 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        case_sensitive = True
+        
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # 필수 환경변수 검증
+        self._validate_required_settings()
+        
+    def _validate_required_settings(self) -> None:
+        """
+        필수 환경변수 검증
+        
+        필수 설정값들이 올바르게 설정되어 있는지 확인합니다.
+        개발 환경에서는 경고만 하고, 운영 환경에서는 예외를 발생시킵니다.
+        
+        Raises:
+            ValueError: 운영 환경에서 필수 환경변수가 누락된 경우
+        """
+        required_fields = {
+            'DART_API_KEY': '다트 API 키',
+            'EMAIL_SENDER': '발신자 이메일',
+            'EMAIL_PASSWORD': '이메일 비밀번호',
+            'EMAIL_RECEIVER': '수신자 이메일'
+        }
+        
+        missing_fields = []
+        for field, description in required_fields.items():
+            value = getattr(self, field, "")
+            if not value or value.strip() == "":
+                missing_fields.append(f"{field} ({description})")
+        
+        if missing_fields:
+            from app.utils.logger import error_logger
+            error_logger.error(f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing_fields)}")
+            # 개발 환경에서는 경고만 하고 실행 계속
+            if not self.DEBUG:
+                raise ValueError(f"필수 환경변수가 설정되지 않았습니다: {', '.join(missing_fields)}")
+    
+    @property
+    def is_production(self) -> bool:
+        """운영 환경 여부"""
+        return not self.DEBUG
+        
+    @property 
+    def log_level(self) -> str:
+        """로그 레벨"""
+        return "DEBUG" if self.DEBUG else "INFO"
 
 
 # 관심 기업 목록 (기존 config.py에서 가져옴)

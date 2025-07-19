@@ -9,8 +9,7 @@ from app.config import settings
 from app.modules.dart.service import dart_service
 from app.shared.websocket import websocket_manager
 from app.shared.email import send_system_alert
-
-logger = logging.getLogger(__name__)
+from app.utils.logger import dart_logger as logger, auto_retry, log_function_call
 
 
 class DartMonitor:

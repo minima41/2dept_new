@@ -11,8 +11,7 @@ from app.modules.stocks.service import stock_service
 from app.modules.stocks.models import StockAlert
 from app.shared.websocket import websocket_manager
 from app.shared.email import send_system_alert
-
-logger = logging.getLogger(__name__)
+from app.utils.logger import stock_logger as logger, auto_retry, log_function_call
 
 
 class StockMonitor:
