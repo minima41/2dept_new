@@ -12,9 +12,9 @@
 - **Backend**: Fully implemented with complete monitoring, service, and router layers
 - **Frontend**: Basic implementation exists but missing critical features from original tkinter GUI
 - **Priority**: Frontend feature completion to match original functionality
+- **Critical Gap**: Mezzanine investment features (conversion price, parity calculation) and complex alert system missing
 
 ## Project Architecture
-
 ### Directory Structure Rules
 - **Backend Modules**: `backend/app/modules/{dart,stocks,funds,keywords,portfolio}/`
 - **Each Module Contains**: `router.py`, `service.py`, `models.py`, `monitor.py`
@@ -52,17 +52,49 @@
 ## Functionality Implementation Standards
 
 ### Critical Missing Features (Priority Order)
+
+#### Phase 1: Data Model & Mezzanine Features (HIGH PRIORITY)
+1. **Database Schema Extension** 
+   - Add `conversion_price`, `conversion_price_floor`, `category`, `acquisition_price` fields
+   - Migrate existing data without loss
+2. **Parity Calculation Engine**
+   - Formula: `(current_price / conversion_price) * 100`
+   - Floor parity: `(current_price / conversion_price_floor) * 100`
+   - Color coding: Green if >= 100%, Red if < 100%
+3. **Stock Category System**
+   - Categories: "메자닌" (mezzanine) / "기타" (other)
+   - UI filtering by category
+   - Different alert rules per category
+
+#### Phase 2: Complex Alert System (HIGH PRIORITY)
+1. **Multi-condition Alert Engine**
+   - TP/SL price alerts
+   - Parity percentage alerts (80%, 100%, 120%)
+   - Daily fluctuation alerts (configurable thresholds)
+   - Duplicate prevention using `triggered_alerts` set
+2. **Alert Tracking System**
+   - Track triggered alerts by ID
+   - Daily reset logic for fluctuation alerts
+   - Alert history persistence
+
+#### Phase 3: UI Enhancement (MEDIUM PRIORITY)
 1. **Real-time Log Display Component** (LogTextHandler web equivalent)
 2. **Theme Toggle System** (light/dark/prompt themes)
-3. **Parity Calculation Display** (for mezzanine stocks using conversion_price)
-4. **Stock Category Filter** (mezzanine/other classification)
-5. **Daily Alert Settings UI** (daily_alert_enabled, up/down thresholds)
-6. **Complete Stock Settings Modal** (conversion_price, acquisition_price, auto-calculation)
-7. **Alert History Page** (notifications.json display)
-8. **Refresh Interval Controls** (30s/60s/300s options)
-9. **End-of-day Summary Email** (auto-send at 15:35-15:40)
-10. **Detailed Stock Information** (current_price, change_rate, parity, profit_loss)
+3. **Advanced Stock Settings Modal** 
+   - All fields from original: conversion prices, acquisition price
+   - Auto-calculation for TP/SL based on acquisition price
+4. **Mezzanine-specific UI Components**
+   - Parity percentage display with color coding
+   - Conversion price input with floor option
+   - Separate email templates for mezzanine/other
 
+#### Phase 4: Automation (MEDIUM PRIORITY)
+1. **End-of-day Summary Email** (15:35-15:40 auto-send)
+   - Separate emails for mezzanine/other stocks
+   - HTML tables with proper formatting
+   - Profit/loss calculations
+2. **Refresh Interval Controls** (30s/60s/300s options)
+3. **Alert History Page** (notifications.json display)
 ### Feature Implementation Rules
 - **Preserve Original Logic**: Copy exact calculations from `simple_stock_manager_integrated.py`
 - **Web Adaptation**: Adapt tkinter UI patterns to React components
@@ -134,6 +166,30 @@
 - **WebSocket Hook** ↔ **Backend websocket.py** (event synchronization)
 - **Log Component** ↔ **Backend logging system** (real-time log streaming)
 
+## Database Migration Standards
+
+### Schema Extension for Mezzanine Features
+```sql
+-- Required fields for mezzanine investment tracking
+ALTER TABLE monitoring_stocks ADD COLUMN conversion_price REAL DEFAULT NULL;
+ALTER TABLE monitoring_stocks ADD COLUMN conversion_price_floor REAL DEFAULT NULL;
+ALTER TABLE monitoring_stocks ADD COLUMN category TEXT DEFAULT 'basic';
+ALTER TABLE monitoring_stocks ADD COLUMN acquisition_price REAL DEFAULT NULL;
+
+-- Index for performance
+CREATE INDEX idx_stock_category ON monitoring_stocks(category);
+```
+
+### Data Migration Rules
+- **Backward Compatibility**: Existing stocks default to category 'basic' (기타)
+- **Null Handling**: conversion_price NULL means non-mezzanine stock
+- **Alert Migration**: Existing alerts preserved, new parity alerts added only for mezzanine
+- **Triggered Alerts**: Convert from list to set structure in migration script
+
+### Migration Script Location
+- **Path**: `backend/migrations/001_add_mezzanine_fields.py`
+- **Execution**: Run before server start if schema version mismatch
+- **Rollback**: Include rollback function for safety
 ## AI Decision-making Standards
 
 ### Priority Matrix
@@ -199,6 +255,40 @@
 - **Real-time Performance**: Updates at same frequency as original
 - **Email Integration**: Alerts sent with identical triggers and content
 - **Data Accuracy**: Calculations match original implementation exactly
+
+## Implementation Checklist by Phase
+
+### Phase 1: Data Model Extension (Days 1-2)
+- [ ] Create database migration script for new fields
+- [ ] Update SQLite schema with mezzanine fields
+- [ ] Modify stocks models.py to include new fields
+- [ ] Update stocks service.py with parity calculation logic
+- [ ] Test data migration with existing stocks data
+- [ ] Implement category filtering in backend API
+
+### Phase 2: Alert System Enhancement (Days 3-5)
+- [ ] Implement triggered_alerts tracking system
+- [ ] Add multi-condition alert evaluation logic
+- [ ] Create daily reset scheduler for fluctuation alerts
+- [ ] Update notification service with deduplication
+- [ ] Test complex alert scenarios
+- [ ] Ensure email alerts work for all conditions
+
+### Phase 3: Frontend UI Updates (Days 6-8)
+- [ ] Create MezzanineStockCard component with parity display
+- [ ] Update StocksPage with category filter tabs
+- [ ] Implement advanced stock settings modal
+- [ ] Add real-time log viewer component
+- [ ] Create theme toggle system
+- [ ] Update stock table to show all new fields
+
+### Phase 4: Automation Features (Days 9-10)
+- [ ] Implement end-of-day email scheduler
+- [ ] Create HTML email templates for mezzanine/other
+- [ ] Add refresh interval selector component
+- [ ] Build alert history page
+- [ ] Test automated workflows
+- [ ] Performance optimization and final testing
 
 ---
 
