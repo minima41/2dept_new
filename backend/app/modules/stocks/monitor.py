@@ -10,7 +10,7 @@ from app.config import settings
 from app.modules.stocks.service import stock_service
 from app.modules.stocks.models import StockAlert
 from app.shared.websocket import websocket_manager
-from app.shared.email import send_system_alert
+from app.shared.email import send_system_alert, send_daily_summary_email
 from app.utils.logger import stock_logger as logger, auto_retry, log_function_call
 
 
@@ -71,6 +71,15 @@ class StockMonitor:
                 trigger=IntervalTrigger(minutes=5),
                 id="stock_health_check",
                 name="주가 모니터링 헬스체크",
+                replace_existing=True
+            )
+            
+            # 일일 마감 요약 이메일 작업 (15:35-15:40)
+            self.scheduler.add_job(
+                self.send_daily_summary,
+                trigger=CronTrigger(hour=15, minute=35),
+                id="daily_summary_email",
+                name="일일 마감 요약 이메일",
                 replace_existing=True
             )
             
@@ -308,6 +317,61 @@ class StockMonitor:
         except Exception as e:
             logger.error(f"주가 헬스체크 실패: {e}")
     
+    @log_function_call
+    async def send_daily_summary(self):
+        """일일 마감 요약 이메일 발송"""
+        try:
+            # 현재 시간 확인 (15:35-15:40 시간대에만 실행)
+            current_time = datetime.now().time()
+            if not (time(15, 35) <= current_time <= time(15, 40)):
+                logger.warning(f"일일 마감 요약 실행 시간이 아닙니다: {current_time}")
+                return
+            
+            logger.info("일일 마감 요약 이메일 발송 시작")
+            
+            # 모니터링 주식 및 통계 데이터 수집
+            monitoring_data = stock_service.get_monitoring_data()
+            statistics = stock_service.get_statistics()
+            
+            # 이메일 데이터 구성
+            email_data = {
+                "stocks": monitoring_data.stocks,
+                "statistics": statistics
+            }
+            
+            # 이메일 발송
+            success = await send_daily_summary_email(email_data)
+            
+            if success:
+                logger.info("일일 마감 요약 이메일 발송 성공")
+                
+                # WebSocket으로 알림 브로드캐스트
+                await websocket_manager.send_system_status({
+                    "service": "daily_summary",
+                    "status": "sent",
+                    "message": "일일 마감 요약 이메일이 발송되었습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "total_stocks": len(monitoring_data.stocks),
+                    "mezzanine_stocks": len([s for s in monitoring_data.stocks if s.category == 'mezzanine']),
+                    "other_stocks": len([s for s in monitoring_data.stocks if s.category == 'other'])
+                })
+                
+            else:
+                logger.error("일일 마감 요약 이메일 발송 실패")
+                await send_system_alert(
+                    "일일 마감 요약 이메일 발송 실패",
+                    "일일 마감 요약 이메일 발송에 실패했습니다. 설정을 확인해주세요.",
+                    "error"
+                )
+            
+        except Exception as e:
+            logger.error(f"일일 마감 요약 이메일 처리 실패: {e}")
+            await send_system_alert(
+                "일일 마감 요약 시스템 오류",
+                f"일일 마감 요약 처리 중 오류가 발생했습니다: {e}",
+                "error"
+            )
+
     async def handle_error(self, error_message: str):
         """에러 처리"""
         try:

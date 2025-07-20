@@ -15,6 +15,8 @@ interface UseWebSocketReturn {
   disconnect: () => void
   sendMessage: (message: any) => void
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error'
+  socket: WebSocket | null
+  isWebSocketConnected: boolean
 }
 
 export const useWebSocket = (): UseWebSocketReturn => {
@@ -286,5 +288,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     disconnect,
     sendMessage,
     connectionStatus,
+    socket: wsRef.current,
+    isWebSocketConnected: isConnected,
   }
 }

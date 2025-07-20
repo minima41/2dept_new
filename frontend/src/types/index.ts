@@ -76,6 +76,7 @@ export interface MonitoringStock {
   code: string
   name: string
   purchase_price: number
+  acquisition_price?: number
   quantity: number
   take_profit?: number
   stop_loss?: number
@@ -83,10 +84,32 @@ export interface MonitoringStock {
   daily_drop_threshold: number
   alert_enabled: boolean
   last_updated: string
+  
+  // 메자닌 투자 관련 필드
+  category: 'mezzanine' | 'other'
+  conversion_price?: number
+  conversion_price_floor?: number
+  
+  // 복잡한 알림 시스템
+  triggered_alerts: string[]
+  alert_prices: AlertPrice[]
+  daily_up_alert_sent: boolean
+  daily_down_alert_sent: boolean
+  
+  // 런타임 데이터
   current_price?: number
   change_rate?: number
   profit_loss?: number
   profit_loss_rate?: number
+  parity?: number
+  parity_floor?: number
+}
+
+export interface AlertPrice {
+  price: number
+  alert_type: string
+  is_enabled: boolean
+  description?: string
 }
 
 export interface StockAlert {
@@ -104,6 +127,7 @@ export interface StockAlert {
 }
 
 export interface StockStatistics {
+  // 전체 통계
   total_stocks: number
   active_alerts: number
   today_alerts: number
@@ -112,6 +136,21 @@ export interface StockStatistics {
   total_portfolio_value: number
   total_profit_loss: number
   total_profit_loss_rate: number
+  total_investment: number
+  
+  // 메자닌 통계
+  mezzanine_stocks: number
+  mezzanine_portfolio_value: number
+  mezzanine_profit_loss: number
+  mezzanine_profit_loss_rate: number
+  mezzanine_investment: number
+  
+  // 기타 통계
+  other_stocks: number
+  other_portfolio_value: number
+  other_profit_loss: number
+  other_profit_loss_rate: number
+  other_investment: number
 }
 
 export interface MarketInfo {
@@ -155,22 +194,34 @@ export interface AddStockForm {
   code: string
   name: string
   purchase_price: number
+  acquisition_price?: number
   quantity: number
   take_profit?: number
   stop_loss?: number
   daily_surge_threshold: number
   daily_drop_threshold: number
   alert_enabled: boolean
+  
+  // 메자닌 투자 관련
+  category: 'mezzanine' | 'other'
+  conversion_price?: number
+  conversion_price_floor?: number
 }
 
 export interface UpdateStockForm {
   purchase_price?: number
+  acquisition_price?: number
   quantity?: number
   take_profit?: number
   stop_loss?: number
   daily_surge_threshold?: number
   daily_drop_threshold?: number
   alert_enabled?: boolean
+  
+  // 메자닌 투자 관련
+  category?: 'mezzanine' | 'other'
+  conversion_price?: number
+  conversion_price_floor?: number
 }
 
 // 검색 결과 타입

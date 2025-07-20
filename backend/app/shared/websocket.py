@@ -20,6 +20,7 @@ class WebSocketEventType(str, Enum):
     USER_CONNECTED = "user_connected"
     USER_DISCONNECTED = "user_disconnected"
     ERROR = "error"
+    LOG_MESSAGE = "log_message"
 
 
 class WebSocketManager:
@@ -185,6 +186,15 @@ class WebSocketManager:
             await self.send_to_connection(connection_id, message)
         else:
             await self.broadcast(message)
+    
+    async def send_log_message(self, log_data: Dict[str, Any]):
+        """로그 메시지 브로드캐스트"""
+        message = {
+            "type": WebSocketEventType.LOG_MESSAGE,
+            "data": log_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        await self.broadcast(message)
     
     def get_connection_stats(self) -> Dict[str, Any]:
         """연결 통계 정보 조회"""

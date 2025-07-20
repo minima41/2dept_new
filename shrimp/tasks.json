@@ -1,516 +1,259 @@
 {
   "tasks": [
     {
-      "id": "1a94410f-a2b0-4821-9048-61460d056540",
-      "name": "WSL2 네트워크 환경 최적화 및 연결 문제 해결",
-      "description": "WSL2 환경에서 localhost 접근 문제와 WebSocket 연결 오류(코드 1006) 해결. Mirrored Mode 설정 적용 및 네트워크 바인딩 최적화를 통한 안정적인 로컬 네트워크 접근 환경 구축.",
-      "notes": "WSL2 Mirrored Mode는 Windows 11 22H2+ 에서만 지원. 이전 버전의 경우 자동 포트 포워딩 스크립트 대안 제공.",
+      "id": "bc1b2fe3-ba2a-4679-9193-8007574a264e",
+      "name": "메자닌 투자 데이터 모델 확장",
+      "description": "stocks 모듈의 MonitoringStock 모델에 메자닌 투자 관련 필드 추가 및 패리티 계산 로직 구현. conversion_price, conversion_price_floor, category, acquisition_price 필드 추가하고 패리티 계산 메서드 구현.",
+      "notes": "기존 데이터 호환성 유지 필수. 기본값 설정으로 기존 종목 데이터 보호",
       "status": "pending",
       "dependencies": [],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "simple_stock_manager_integrated.py",
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\models.py",
           "type": "TO_MODIFY",
-          "description": "서버 바인딩 설정 확인 및 수정",
-          "lineStart": 1,
-          "lineEnd": 50
-        },
-        {
-          "path": "%USERPROFILE%\\.wslconfig",
-          "type": "CREATE",
-          "description": "WSL2 네트워크 설정 파일 생성"
-        }
-      ],
-      "implementationGuide": "1. WSL2 설정 파일(.wslconfig) 생성 및 networkingMode=mirrored 설정\\n2. Windows 방화벽 localhost 접근 허용 규칙 추가\\n3. 기존 Python 서버 코드에서 0.0.0.0 바인딩 확인\\n4. 포트 충돌 검사 및 해결\\n5. 네트워크 연결 테스트 스크립트 작성",
-      "verificationCriteria": "Windows 브라우저에서 http://localhost:포트 접근 성공, WebSocket 연결 안정성 확인, 네트워크 지연시간 200ms 이내 달성",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
-    },
-    {
-      "id": "a1d0f112-ef78-4603-aa74-c8b8afe24cfe",
-      "name": "통합 로깅 시스템 구축 및 에러 처리 강화",
-      "description": "dart_monitor.py와 simple_stock_manager_integrated.py의 개별 로깅을 통합 시스템으로 표준화. RotatingFileHandler 적용하여 로그 파일 자동 관리 및 구조화된 에러 처리 로직 구현.",
-      "notes": "로그 파일은 C:\\2dept\\logs 디렉터리에 저장. 기존 로그 형식과 호환성 유지.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "1a94410f-a2b0-4821-9048-61460d056540"
-        }
-      ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
-      "relatedFiles": [
-        {
-          "path": "utils/logger.py",
-          "type": "CREATE",
-          "description": "통합 로깅 시스템 모듈"
-        },
-        {
-          "path": "simple_stock_manager_integrated.py",
-          "type": "TO_MODIFY",
-          "description": "로깅 호출 부분 수정",
-          "lineStart": 15,
-          "lineEnd": 30
-        },
-        {
-          "path": "dart_monitor.py",
-          "type": "TO_MODIFY",
-          "description": "로깅 호출 부분 수정",
-          "lineStart": 25,
-          "lineEnd": 45
-        },
-        {
-          "path": "logs/",
-          "type": "CREATE",
-          "description": "로그 디렉터리 생성"
-        }
-      ],
-      "implementationGuide": "1. utils/logger.py 공통 로깅 모듈 생성\\n2. RotatingFileHandler 설정 (5MB, 3개 백업)\\n3. 로그 레벨별 출력 설정 (INFO→파일, DEBUG→콘솔)\\n4. 기존 코드의 print/logging 호출을 통합 로거로 변경\\n5. 예외 발생 시 자동 재시도 로직 추가",
-      "verificationCriteria": "통합 로그 파일 정상 생성, 로그 로테이션 동작 확인, 에러 발생 시 자동 재시도 3회 수행, 로그 레벨별 올바른 출력 확인",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
-    },
-    {
-      "id": "6caabcd4-422d-4e24-b6cd-13da5bd657c1",
-      "name": "환경변수 기반 설정 시스템 구축",
-      "description": "config.py의 하드코딩된 API 키와 이메일 설정을 .env 파일로 분리하여 보안성 강화. python-dotenv를 활용한 환경변수 로딩 시스템 구현.",
-      "notes": ".env 파일은 절대 Git에 커밋하지 않음. 기존 config.py 구조는 공개 설정 부분만 유지.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "a1d0f112-ef78-4603-aa74-c8b8afe24cfe"
-        }
-      ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
-      "relatedFiles": [
-        {
-          "path": ".env",
-          "type": "CREATE",
-          "description": "환경변수 설정 파일"
-        },
-        {
-          "path": ".env.example",
-          "type": "CREATE",
-          "description": "환경변수 템플릿 파일"
-        },
-        {
-          "path": "config.py",
-          "type": "TO_MODIFY",
-          "description": "환경변수 로딩 로직 추가",
-          "lineStart": 1,
-          "lineEnd": 20
-        },
-        {
-          "path": ".gitignore",
-          "type": "TO_MODIFY",
-          "description": ".env 파일 제외 규칙 추가"
-        },
-        {
-          "path": "requirements.txt",
-          "type": "CREATE",
-          "description": "python-dotenv 의존성 추가"
-        }
-      ],
-      "implementationGuide": "1. .env 파일 생성 및 민감 정보 이전\\n2. python-dotenv 의존성 추가\\n3. config.py에서 os.getenv() 기반 설정 로딩\\n4. .gitignore에 .env 추가\\n5. .env.example 템플릿 파일 생성",
-      "verificationCriteria": "환경변수 정상 로딩 확인, API 키 노출 방지, .env 파일 Git 제외 확인, 기존 기능 정상 동작 검증",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
-    },
-    {
-      "id": "178b0837-73a5-4b6c-9295-59a4e5cb7fb7",
-      "name": "공통 이메일 발송 모듈 추출 및 중복 제거",
-      "description": "dart_monitor.py와 simple_stock_manager_integrated.py에 중복 구현된 이메일 발송 로직을 utils/email_sender.py로 통합. SMTP 연결 풀링 및 발송 실패 시 재시도 로직 포함.",
-      "notes": "Gmail SMTP 설정 유지. 기존 이메일 형식과 완전 호환성 보장.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "6caabcd4-422d-4e24-b6cd-13da5bd657c1"
-        }
-      ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
-      "relatedFiles": [
-        {
-          "path": "utils/email_sender.py",
-          "type": "CREATE",
-          "description": "공통 이메일 발송 모듈"
-        },
-        {
-          "path": "simple_stock_manager_integrated.py",
-          "type": "TO_MODIFY",
-          "description": "이메일 발송 로직 교체",
-          "lineStart": 600,
-          "lineEnd": 700
-        },
-        {
-          "path": "dart_monitor.py",
-          "type": "TO_MODIFY",
-          "description": "이메일 발송 로직 교체",
+          "description": "MonitoringStock 모델 확장",
           "lineStart": 80,
           "lineEnd": 120
-        },
-        {
-          "path": "utils/__init__.py",
-          "type": "CREATE",
-          "description": "유틸리티 패키지 초기화"
         }
       ],
-      "implementationGuide": "1. utils/email_sender.py 공통 모듈 생성\\n2. SMTP 연결 설정 및 풀링 구현\\n3. HTML/텍스트 이메일 템플릿 지원\\n4. 발송 실패 시 3회 재시도 로직\\n5. 기존 코드의 이메일 발송 부분을 공통 모듈 호출로 변경",
-      "verificationCriteria": "이메일 발송 성공률 100% 유지, 발송 속도 개선, 중복 코드 완전 제거, 에러 핸들링 강화 확인",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. backend/app/modules/stocks/models.py 수정\\n- MonitoringStock 클래스에 필드 추가: conversion_price, conversion_price_floor, category, acquisition_price\\n- 패리티 계산 메서드 추가: calculate_parity(), calculate_parity_floor()\\n2. 기존 purchase_price를 acquisition_price로 통합\\n3. category 필드에 'mezzanine', 'other' enum 값 설정",
+      "verificationCriteria": "새 필드가 추가되고 패리티 계산이 정확히 동작하며, 기존 종목 데이터가 손상되지 않음",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "abcbbe1c-3d7a-4097-a83a-c213c06a8112",
-      "name": "타입 힌팅 및 코드 문서화 추가",
-      "description": "모든 함수와 클래스에 타입 힌팅 적용 및 docstring 문서화. mypy 정적 타입 검사 도구 도입으로 코드 품질 향상.",
-      "notes": "기존 코드 동작에 영향을 주지 않는 범위에서 점진적 적용.",
+      "id": "23baf934-4e24-4d26-a0f8-51da1e7ba119",
+      "name": "복잡한 알림 시스템 데이터 구조 구현",
+      "description": "triggered_alerts 추적 시스템과 alert_prices 복잡한 배열 구조 구현. set 기반 중복 알림 방지, 일일 리셋 로직, 다종 알림 조건 지원.",
+      "notes": "simple_stock_manager_integrated.py의 알림 로직과 동일하게 구현",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "178b0837-73a5-4b6c-9295-59a4e5cb7fb7"
+          "taskId": "bc1b2fe3-ba2a-4679-9193-8007574a264e"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "simple_stock_manager_integrated.py",
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\models.py",
           "type": "TO_MODIFY",
-          "description": "타입 힌팅 및 docstring 추가",
-          "lineStart": 1,
-          "lineEnd": 100
-        },
-        {
-          "path": "dart_monitor.py",
-          "type": "TO_MODIFY",
-          "description": "타입 힌팅 및 docstring 추가",
-          "lineStart": 1,
-          "lineEnd": 50
-        },
-        {
-          "path": "config.py",
-          "type": "TO_MODIFY",
-          "description": "타입 힌팅 추가"
-        },
-        {
-          "path": "mypy.ini",
-          "type": "CREATE",
-          "description": "mypy 설정 파일"
-        },
-        {
-          "path": "requirements.txt",
-          "type": "TO_MODIFY",
-          "description": "mypy 의존성 추가"
+          "description": "알림 관련 모델 추가",
+          "lineStart": 120,
+          "lineEnd": 200
         }
       ],
-      "implementationGuide": "1. 주요 함수 및 클래스에 타입 힌팅 추가\\n2. Google 스타일 docstring 작성\\n3. mypy 설정 파일 생성\\n4. typing 모듈 활용한 복합 타입 정의\\n5. IDE 자동완성 향상을 위한 타입 정보 보강",
-      "verificationCriteria": "mypy 정적 타입 검사 통과, 모든 공개 함수 docstring 작성 완료, IDE 자동완성 향상 확인",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. triggered_alerts Set[str] 필드 추가\\n2. alert_prices List[AlertPrice] 복잡한 구조 정의\\n3. daily_up_alert_sent, daily_down_alert_sent 필드 추가\\n4. 일일 리셋 로직 메서드 구현\\n5. 알림 ID 기반 중복 방지 로직",
+      "verificationCriteria": "알림 중복 방지가 정상 동작하고, 일일 리셋이 정확히 수행됨",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "89632478-a705-4155-85a4-506b37626cf5",
-      "name": "API 호출 최적화 및 캐싱 시스템 구현",
-      "description": "PyKrx와 DART API 호출을 최적화하고 Redis 기반 캐싱 시스템 구현. Rate limiting 적용 및 API 응답 캐싱으로 성능 향상.",
-      "notes": "Redis 서버 없는 환경에서는 메모리 캐시로 fallback. 캐시 TTL 설정으로 데이터 신선도 보장.",
+      "id": "79d393ef-545f-4a38-b16e-980406baf909",
+      "name": "stocks 서비스 레이어 확장",
+      "description": "패리티 계산, 복잡한 알림 조건 평가, 메자닌 분류별 처리 로직을 service.py에 추가. 기존 서비스 메서드를 확장하여 새로운 기능 지원.",
+      "notes": "기존 API 엔드포인트 시그니처 변경 금지. 기능 확장만 허용",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "abcbbe1c-3d7a-4097-a83a-c213c06a8112"
+          "taskId": "23baf934-4e24-4d26-a0f8-51da1e7ba119"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "utils/cache.py",
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\service.py",
+          "type": "TO_MODIFY",
+          "description": "서비스 로직 확장",
+          "lineStart": 1,
+          "lineEnd": 300
+        }
+      ],
+      "implementationGuide": "1. get_monitoring_stocks()에 패리티 계산 추가\\n2. check_alert_conditions()에 메자닌별 알림 로직 구현\\n3. calculate_portfolio_summary()에 메자닌/기타 분리 통계\\n4. send_daily_email()에 분리된 이메일 템플릿 적용",
+      "verificationCriteria": "패리티 계산이 정확하고, 메자닌/기타 분류별 처리가 정상 동작함",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
+    },
+    {
+      "id": "e8b87efe-673c-400f-b9fd-9f6c9d580105",
+      "name": "메자닌 전용 프론트엔드 컴포넌트 개발",
+      "description": "메자닌 종목 전용 UI 컴포넌트 개발. 패리티 표시, 전환가 설정, 색상 코딩(100% 기준 red/green) 등 메자닌 특화 기능 구현.",
+      "notes": "TailwindCSS 유틸리티 클래스만 사용. 기존 ui 컴포넌트 재사용",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "79d393ef-545f-4a38-b16e-980406baf909"
+        }
+      ],
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\components\\MezzanineStockCard.tsx",
           "type": "CREATE",
-          "description": "캐싱 시스템 모듈"
+          "description": "메자닌 전용 UI 컴포넌트"
         },
         {
-          "path": "simple_stock_manager_integrated.py",
+          "path": "C:\\2dept\\frontend\\src\\types\\stocks.ts",
           "type": "TO_MODIFY",
-          "description": "API 호출 부분 캐싱 적용",
-          "lineStart": 200,
+          "description": "메자닌 관련 타입 정의 추가"
+        }
+      ],
+      "implementationGuide": "1. MezzanineStockCard.tsx 컴포넌트 생성\\n2. 패리티 % 표시 및 색상 코딩 (>=100% green, <100% red)\\n3. 전환가, 전환가(floor) 입력 필드\\n4. 패리티 알림 설정 (80%, 100%, 120%)\\n5. 메자닌 전용 통계 위젯",
+      "verificationCriteria": "메자닌 종목의 패리티가 올바르게 계산되어 표시되고, 색상 코딩이 정확함",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
+    },
+    {
+      "id": "1ef45bb3-3a8e-4f36-b895-8abd8cb05a5c",
+      "name": "StocksPage 고도화 - 카테고리 필터링",
+      "description": "StocksPage에 메자닌/기타 분류 필터 탭, 고급 종목 설정 모달, 컬럼 동적 변경 기능 추가. 메자닌일 때 패리티 컬럼 표시, 기타일 때 수익률 컬럼 표시.",
+      "notes": "기존 StocksPage.tsx 구조 유지하면서 기능 확장",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "e8b87efe-673c-400f-b9fd-9f6c9d580105"
+        }
+      ],
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\pages\\StocksPage.tsx",
+          "type": "TO_MODIFY",
+          "description": "카테고리 필터 및 동적 컬럼 추가",
+          "lineStart": 1,
           "lineEnd": 300
         },
         {
-          "path": "dart_monitor.py",
-          "type": "TO_MODIFY",
-          "description": "DART API 호출 캐싱 적용",
-          "lineStart": 150,
-          "lineEnd": 200
-        },
-        {
-          "path": "requirements.txt",
-          "type": "TO_MODIFY",
-          "description": "redis 의존성 추가"
+          "path": "C:\\2dept\\frontend\\src\\components\\AdvancedStockModal.tsx",
+          "type": "CREATE",
+          "description": "고급 종목 설정 모달"
         }
       ],
-      "implementationGuide": "1. Redis 캐싱 모듈 구현 (utils/cache.py)\\n2. API 호출 간격 제어 및 rate limiting\\n3. 주가 데이터 5분 캐싱, 공시 데이터 30분 캐싱\\n4. API 실패 시 캐시된 데이터 fallback\\n5. 캐시 적중률 모니터링 로그 추가",
-      "verificationCriteria": "API 호출 횟수 50% 감소, 응답 시간 200ms 이내 유지, 캐시 적중률 80% 이상 달성",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. 카테고리 필터 라디오버튼 (전체/메자닌/기타)\\n2. 메자닌 선택 시 테이블 컬럼 변경: 패리티(%), 패리티(floor)(%) 컬럼 추가\\n3. 기타 선택 시 수익률 컬럼 표시\\n4. AdvancedStockModal 컴포넌트로 전환가, 패리티 설정\\n5. 종목별 설정 아이콘 클릭으로 모달 열기",
+      "verificationCriteria": "카테고리 필터가 정상 동작하고, 메자닌/기타별로 적절한 컬럼이 표시됨",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "d2618118-a2e0-447f-8f79-18175a991b02",
-      "name": "메모리 사용량 최적화 및 가비지 컬렉션 개선",
-      "description": "장시간 실행 시 메모리 누수 방지 및 효율적인 메모리 사용을 위한 최적화. 대용량 데이터 처리 시 메모리 효율성 개선.",
-      "notes": "2GB 메모리 제한 내에서 안정적 동작 보장. 메모리 사용량 임계치 알림 기능 포함.",
+      "id": "655e2bb6-2fd3-4104-955a-04fe06cc1b0e",
+      "name": "실시간 로그 시스템 구현",
+      "description": "백엔드 로그를 WebSocket으로 실시간 스트리밍하는 LogTextHandler 웹 버전 구현. 로그 레벨 필터링, 자동 스크롤, 로그 저장 기능 포함.",
+      "notes": "simple_stock_manager_integrated.py의 LogTextHandler와 동일한 기능",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "89632478-a705-4155-85a4-506b37626cf5"
+          "taskId": "1ef45bb3-3a8e-4f36-b895-8abd8cb05a5c"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "utils/memory_monitor.py",
+          "path": "C:\\2dept\\backend\\app\\shared\\websocket.py",
+          "type": "TO_MODIFY",
+          "description": "로그 스트리밍 WebSocket 추가"
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\components\\LogViewer.tsx",
           "type": "CREATE",
-          "description": "메모리 모니터링 모듈"
-        },
-        {
-          "path": "simple_stock_manager_integrated.py",
-          "type": "TO_MODIFY",
-          "description": "메모리 최적화 적용",
-          "lineStart": 100,
-          "lineEnd": 200
-        },
-        {
-          "path": "dart_monitor.py",
-          "type": "TO_MODIFY",
-          "description": "메모리 최적화 적용",
-          "lineStart": 50,
-          "lineEnd": 100
-        },
-        {
-          "path": "requirements.txt",
-          "type": "TO_MODIFY",
-          "description": "memory_profiler 의존성 추가"
+          "description": "실시간 로그 뷰어 컴포넌트"
         }
       ],
-      "implementationGuide": "1. 메모리 프로파일링 도구(memory_profiler) 적용\\n2. 불필요한 전역 변수 및 순환 참조 제거\\n3. 대용량 데이터 스트리밍 처리 방식 적용\\n4. 명시적 가비지 컬렉션 호출 시점 최적화\\n5. 메모리 사용량 모니터링 로그 추가",
-      "verificationCriteria": "24시간 연속 실행 시 메모리 사용량 2GB 이하 유지, 메모리 누수 없음 확인, 가비지 컬렉션 효율성 개선",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. backend WebSocket 로그 스트리밍 엔드포인트 추가\\n2. LogViewer.tsx 컴포넌트 생성\\n3. 로그 레벨 필터 (DEBUG, INFO, WARNING, ERROR)\\n4. 자동 스크롤 토글, 로그 클리어 기능\\n5. useWebSocket 훅 활용한 실시간 업데이트",
+      "verificationCriteria": "백엔드 로그가 실시간으로 프론트엔드에 표시되고, 필터링이 정상 동작함",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "fe7953e1-aa5c-4edf-82a1-d73edbb7e291",
-      "name": "파일 I/O 성능 최적화 및 동시성 개선",
-      "description": "JSON 파일 읽기/쓰기 성능 최적화 및 파일 락킹 메커니즘 개선. 동시 접근 시 데이터 무결성 보장.",
-      "notes": "기존 JSON 파일 형식 완전 보존. 파일 백업 메커니즘으로 데이터 손실 방지.",
+      "id": "8bc88c02-8df8-4421-a4ae-9e55e3182e14",
+      "name": "테마 시스템 구현",
+      "description": "light/dark/prompt 3가지 테마 지원. 테마 전환 토글, 로컬 스토리지 대신 Context API 사용한 상태 관리, TailwindCSS 다크모드 활용.",
+      "notes": "브라우저 스토리지 사용 금지. Context API만 사용",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "d2618118-a2e0-447f-8f79-18175a991b02"
+          "taskId": "655e2bb6-2fd3-4104-955a-04fe06cc1b0e"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "utils/file_manager.py",
+          "path": "C:\\2dept\\frontend\\src\\contexts\\ThemeContext.tsx",
           "type": "CREATE",
-          "description": "파일 I/O 최적화 모듈"
+          "description": "테마 Context 및 Provider"
         },
         {
-          "path": "simple_stock_manager_integrated.py",
-          "type": "TO_MODIFY",
-          "description": "파일 I/O 부분 최적화",
-          "lineStart": 400,
-          "lineEnd": 500
+          "path": "C:\\2dept\\frontend\\src\\components\\ThemeToggle.tsx",
+          "type": "CREATE",
+          "description": "테마 토글 컴포넌트"
         },
         {
-          "path": "dart_monitor.py",
+          "path": "C:\\2dept\\frontend\\tailwind.config.js",
           "type": "TO_MODIFY",
-          "description": "파일 I/O 부분 최적화",
-          "lineStart": 100,
-          "lineEnd": 150
-        },
-        {
-          "path": "requirements.txt",
-          "type": "TO_MODIFY",
-          "description": "aiofiles 의존성 추가"
+          "description": "prompt 테마 색상 추가"
         }
       ],
-      "implementationGuide": "1. 비동기 파일 I/O 적용 (aiofiles)\\n2. 파일 락킹 개선 (FileLock 최적화)\\n3. JSON 직렬화/역직렬화 성능 개선\\n4. 배치 쓰기를 통한 I/O 횟수 감소\\n5. 파일 손상 방지를 위한 원자적 쓰기 구현",
-      "verificationCriteria": "파일 I/O 속도 50% 향상, 동시 접근 시 데이터 무결성 보장, 파일 손상 사례 제로 달성",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. ThemeContext.tsx 생성 (light/dark/prompt)\\n2. ThemeToggle.tsx 컴포넌트 생성\\n3. tailwind.config.js에 prompt 테마 색상 추가\\n4. index.css에 CSS 변수 정의\\n5. 모든 페이지/컴포넌트에 테마 적용",
+      "verificationCriteria": "3가지 테마가 정상 전환되고, 새로고침 후에도 테마가 유지됨",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "13ad7824-8ec9-44b3-9215-bd306f3e1585",
-      "name": "포괄적 단위 테스트 구축",
-      "description": "모든 핵심 기능에 대한 단위 테스트 작성. pytest 프레임워크 활용하여 80% 이상 코드 커버리지 달성.",
-      "notes": "외부 API 의존성 없이 독립적 테스트 실행 가능. CI/CD 파이프라인 연동 준비.",
+      "id": "5e0a7bac-9abd-44a6-8b43-cfc4f2bd6cad",
+      "name": "마감 자동 이메일 시스템 구현",
+      "description": "15:35-15:40 시간대 자동 마감 요약 이메일 발송. 메자닌/기타 분리된 HTML 테이블, 수익률 계산, 패리티 표시 포함.",
+      "notes": "simple_stock_manager_integrated.py의 send_daily_summary_email과 동일한 로직",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "fe7953e1-aa5c-4edf-82a1-d73edbb7e291"
+          "taskId": "8bc88c02-8df8-4421-a4ae-9e55e3182e14"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "tests/test_stock_manager.py",
-          "type": "CREATE",
-          "description": "주식 관리자 단위 테스트"
-        },
-        {
-          "path": "tests/test_dart_monitor.py",
-          "type": "CREATE",
-          "description": "DART 모니터 단위 테스트"
-        },
-        {
-          "path": "tests/test_utils.py",
-          "type": "CREATE",
-          "description": "유틸리티 모듈 테스트"
-        },
-        {
-          "path": "tests/conftest.py",
-          "type": "CREATE",
-          "description": "pytest 설정 및 픽스처"
-        },
-        {
-          "path": "pytest.ini",
-          "type": "CREATE",
-          "description": "pytest 설정 파일"
-        },
-        {
-          "path": "requirements.txt",
+          "path": "C:\\2dept\\backend\\app\\shared\\email.py",
           "type": "TO_MODIFY",
-          "description": "pytest, coverage 의존성 추가"
+          "description": "HTML 이메일 템플릿 추가"
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks\\monitor.py",
+          "type": "TO_MODIFY",
+          "description": "자동 이메일 스케줄러 추가"
         }
       ],
-      "implementationGuide": "1. pytest 테스트 프레임워크 설정\\n2. API 호출 모킹(unittest.mock) 테스트\\n3. 데이터 파싱 로직 단위 테스트\\n4. 이메일 발송 기능 테스트\\n5. 에러 처리 시나리오 테스트",
-      "verificationCriteria": "코드 커버리지 80% 이상 달성, 모든 테스트 통과, 테스트 실행 시간 30초 이내",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. EmailService에 HTML 템플릿 생성 메서드 추가\\n2. 메자닌 전용 이메일 템플릿: 패리티 컬럼 포함\\n3. 기타 전용 이메일 템플릿: 수익률 컬럼 포함\\n4. APScheduler 15:35-15:40 자동 실행\\n5. 등락률 기준 정렬, 색상 코딩 적용",
+      "verificationCriteria": "15:35-15:40에 자동으로 메자닌/기타 분리된 이메일이 발송됨",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     },
     {
-      "id": "80fdfe6b-3e2c-4edd-96ae-f3ac39d0d0a0",
-      "name": "통합 테스트 및 성능 테스트 구현",
-      "description": "실제 API 연동 포함 통합 테스트 및 성능 벤치마크 테스트 구현. 시스템 전체 동작 검증 및 성능 지표 측정.",
-      "notes": "API 키 설정된 환경에서만 실행. 성능 기준 미달 시 알림 기능 포함.",
+      "id": "62c8d4a9-df8e-4311-b453-7c712f72c6ba",
+      "name": "종합 테스트 및 성능 최적화",
+      "description": "전체 시스템 통합 테스트, 성능 최적화, 에러 처리 개선. 메자닌 기능의 모든 시나리오 테스트 및 기존 기능 회귀 테스트.",
+      "notes": "기존 기능 동작 보장 필수. 성능 저하 없이 새 기능 추가 확인",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "13ad7824-8ec9-44b3-9215-bd306f3e1585"
+          "taskId": "5e0a7bac-9abd-44a6-8b43-cfc4f2bd6cad"
         }
       ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
+      "createdAt": "2025-07-20T02:35:35.533Z",
+      "updatedAt": "2025-07-20T02:35:35.533Z",
       "relatedFiles": [
         {
-          "path": "tests/integration/test_api_integration.py",
-          "type": "CREATE",
-          "description": "API 통합 테스트"
+          "path": "C:\\2dept\\frontend\\src\\pages",
+          "type": "TO_MODIFY",
+          "description": "성능 최적화 적용"
         },
         {
-          "path": "tests/performance/test_performance.py",
-          "type": "CREATE",
-          "description": "성능 벤치마크 테스트"
-        },
-        {
-          "path": "tests/integration/test_end_to_end.py",
-          "type": "CREATE",
-          "description": "전체 시스템 테스트"
-        },
-        {
-          "path": "scripts/performance_monitor.py",
-          "type": "CREATE",
-          "description": "성능 모니터링 스크립트"
+          "path": "C:\\2dept\\backend\\app\\modules\\stocks",
+          "type": "TO_MODIFY",
+          "description": "에러 처리 개선"
         }
       ],
-      "implementationGuide": "1. 실제 API 연동 통합 테스트 시나리오\\n2. 멀티스레딩 동시성 테스트\\n3. 메모리 및 CPU 사용량 성능 테스트\\n4. 장시간 실행 안정성 테스트\\n5. 자동화된 성능 리포트 생성",
-      "verificationCriteria": "통합 테스트 100% 통과, API 응답시간 200ms 이내, 24시간 연속 실행 안정성 확인",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
-    },
-    {
-      "id": "8c9b893c-fdaf-4a40-8fba-beeb19e748df",
-      "name": "GitHub Actions CI/CD 파이프라인 구축",
-      "description": "자동화된 테스트 실행, 코드 품질 검사, 배포 파이프라인 구축. 코드 푸시 시 자동 검증 및 품질 관리.",
-      "notes": "pull request 시 자동 검증. main 브랜치 보호 규칙 적용.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "80fdfe6b-3e2c-4edd-96ae-f3ac39d0d0a0"
-        }
-      ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
-      "relatedFiles": [
-        {
-          "path": ".github/workflows/ci.yml",
-          "type": "CREATE",
-          "description": "CI/CD 워크플로우 설정"
-        },
-        {
-          "path": ".github/workflows/quality-check.yml",
-          "type": "CREATE",
-          "description": "코드 품질 검사 워크플로우"
-        },
-        {
-          "path": "scripts/deploy.py",
-          "type": "CREATE",
-          "description": "배포 자동화 스크립트"
-        },
-        {
-          "path": ".flake8",
-          "type": "CREATE",
-          "description": "flake8 설정 파일"
-        },
-        {
-          "path": "pyproject.toml",
-          "type": "CREATE",
-          "description": "black 및 프로젝트 설정"
-        }
-      ],
-      "implementationGuide": "1. GitHub Actions 워크플로우 파일 작성\\n2. 테스트 자동 실행 파이프라인\\n3. 코드 품질 검사 (flake8, black, mypy)\\n4. 보안 취약점 스캔 (bandit)\\n5. 자동 배포 스크립트 및 롤백 메커니즘",
-      "verificationCriteria": "CI/CD 파이프라인 정상 동작, 코드 품질 기준 통과, 자동 배포 성공률 100%",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
-    },
-    {
-      "id": "8653f9fb-1ad0-4dfb-af08-04a4ca91ed9e",
-      "name": "운영 모니터링 시스템 및 헬스체크 구현",
-      "description": "시스템 상태 모니터링, 자동 알림, 헬스체크 엔드포인트 구현. 장애 조기 감지 및 자동 복구 메커니즘 구축.",
-      "notes": "Prometheus 메트릭 포맷 지원. Grafana 대시보드 연동 가능한 구조.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "8c9b893c-fdaf-4a40-8fba-beeb19e748df"
-        }
-      ],
-      "createdAt": "2025-07-18T23:17:10.413Z",
-      "updatedAt": "2025-07-18T23:17:10.413Z",
-      "relatedFiles": [
-        {
-          "path": "monitoring/health_check.py",
-          "type": "CREATE",
-          "description": "헬스체크 서버 모듈"
-        },
-        {
-          "path": "monitoring/system_monitor.py",
-          "type": "CREATE",
-          "description": "시스템 모니터링 모듈"
-        },
-        {
-          "path": "monitoring/alerting.py",
-          "type": "CREATE",
-          "description": "알림 시스템 모듈"
-        },
-        {
-          "path": "scripts/auto_recovery.py",
-          "type": "CREATE",
-          "description": "자동 복구 스크립트"
-        },
-        {
-          "path": "config/monitoring.yaml",
-          "type": "CREATE",
-          "description": "모니터링 설정 파일"
-        }
-      ],
-      "implementationGuide": "1. 헬스체크 HTTP 엔드포인트 구현\\n2. 시스템 리소스 모니터링 (CPU, 메모리, 디스크)\\n3. API 응답시간 및 성공률 모니터링\\n4. 임계치 초과 시 자동 알림 발송\\n5. 시스템 재시작 및 복구 자동화",
-      "verificationCriteria": "헬스체크 엔드포인트 정상 응답, 시스템 메트릭 수집 및 알림 기능 동작, 자동 복구 메커니즘 검증",
-      "analysisResult": "투자본부 모니터링 시스템의 기존 운영 환경을 유지하면서 안정성과 품질을 단계적으로 개선하는 프로젝트. 현재 simple_stock_manager_integrated.py와 dart_monitor.py가 정상 동작 중이므로 무중단 개선을 통해 시스템 안정성 강화, 성능 최적화, 코드 품질 향상을 목표로 함."
+      "implementationGuide": "1. 메자닌 종목 추가/수정/삭제 테스트\\n2. 패리티 계산 정확성 검증\\n3. 알림 중복 방지 테스트\\n4. 실시간 로그 성능 테스트\\n5. 마감 이메일 발송 테스트\\n6. React.memo, useMemo 적용으로 성능 최적화",
+      "verificationCriteria": "모든 기능이 정상 동작하고, 기존 기능에 영향 없으며, 성능 기준을 충족함",
+      "analysisResult": "C:\\2dept 프로젝트에 simple_stock_manager_integrated.py와 dart_monitor.py의 고급 기능들을 웹 환경으로 통합 구현. 현재 React + FastAPI 아키텍처는 완성되어 있으나, 메자닌 투자 관리, 복잡한 알림 시스템, UI 고도화, 자동화 기능이 누락된 상태. 백엔드 core 로직 수정 금지 원칙 하에 프론트엔드 중심으로 기능 확장."
     }
   ]
 }

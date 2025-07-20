@@ -22,6 +22,20 @@ class MarketStatus(str, Enum):
     AFTER_MARKET = "after_market"  # 장 마감 후
 
 
+class StockCategory(str, Enum):
+    """종목 카테고리"""
+    MEZZANINE = "mezzanine"  # 메자닌 투자
+    OTHER = "other"          # 기타 투자
+
+
+class AlertPrice(BaseModel):
+    """알림 가격 설정"""
+    price: float = Field(..., description="알림 가격")
+    alert_type: str = Field(..., description="알림 유형")
+    is_enabled: bool = Field(True, description="활성화 상태")
+    description: Optional[str] = Field(None, description="설명")
+
+
 class StockData(BaseModel):
     """주가 데이터 모델"""
     code: str = Field(..., description="종목코드")
@@ -66,7 +80,9 @@ class MonitoringStock(BaseModel):
     """모니터링 주식 모델"""
     code: str = Field(..., description="종목코드")
     name: str = Field(..., description="종목명")
-    purchase_price: float = Field(..., description="취득가")
+    # acquisition_price는 purchase_price를 대체하되 기존 호환성 유지
+    purchase_price: float = Field(..., description="취득가 (기존 호환성)")
+    acquisition_price: Optional[float] = Field(None, description="취득가 (새 필드)")
     quantity: int = Field(..., description="보유수량")
     take_profit: Optional[float] = Field(None, description="목표가")
     stop_loss: Optional[float] = Field(None, description="손절가")
@@ -75,22 +91,133 @@ class MonitoringStock(BaseModel):
     alert_enabled: bool = Field(True, description="알림 활성화")
     last_updated: datetime = Field(default_factory=datetime.now, description="마지막 업데이트")
     
+    # 메자닌 투자 관련 필드
+    category: StockCategory = Field(StockCategory.OTHER, description="종목 카테고리")
+    conversion_price: Optional[float] = Field(None, description="전환가격")
+    conversion_price_floor: Optional[float] = Field(None, description="전환가격 바닥가")
+    
+    # 복잡한 알림 시스템 필드
+    triggered_alerts: List[str] = Field(default_factory=list, description="발송된 알림 ID 목록")
+    alert_prices: List[AlertPrice] = Field(default_factory=list, description="사용자 정의 알림 가격 목록")
+    daily_up_alert_sent: bool = Field(False, description="일일 상승 알림 발송 여부")
+    daily_down_alert_sent: bool = Field(False, description="일일 하락 알림 발송 여부")
+    
     # 런타임 데이터
     current_price: Optional[float] = Field(None, description="현재가")
     change_rate: Optional[float] = Field(None, description="변동률")
     profit_loss: Optional[float] = Field(None, description="손익금액")
     profit_loss_rate: Optional[float] = Field(None, description="손익률")
+    parity: Optional[float] = Field(None, description="패리티 (%)")
+    parity_floor: Optional[float] = Field(None, description="패리티 바닥가 (%)")
+    
+    @property
+    def effective_acquisition_price(self) -> float:
+        """실제 취득가 반환 (새 필드 우선, 없으면 기존 필드)"""
+        return self.acquisition_price if self.acquisition_price is not None else self.purchase_price
     
     def calculate_profit_loss(self):
         """손익 계산"""
         if self.current_price is None:
             return
         
-        self.profit_loss = (self.current_price - self.purchase_price) * self.quantity
-        self.profit_loss_rate = ((self.current_price - self.purchase_price) / self.purchase_price) * 100
+        acquisition_price = self.effective_acquisition_price
+        self.profit_loss = (self.current_price - acquisition_price) * self.quantity
+        self.profit_loss_rate = ((self.current_price - acquisition_price) / acquisition_price) * 100
+    
+    def calculate_parity(self) -> Optional[float]:
+        """패리티 계산 (메자닌 투자용)"""
+        if self.category != StockCategory.MEZZANINE or not self.conversion_price or not self.current_price:
+            return None
+        
+        parity = (self.current_price / self.conversion_price) * 100
+        self.parity = round(parity, 2)
+        return self.parity
+    
+    def calculate_parity_floor(self) -> Optional[float]:
+        """패리티 바닥가 계산 (메자닌 투자용)"""
+        if self.category != StockCategory.MEZZANINE or not self.conversion_price_floor or not self.current_price:
+            return None
+        
+        parity_floor = (self.current_price / self.conversion_price_floor) * 100
+        self.parity_floor = round(parity_floor, 2)
+        return self.parity_floor
+    
+    def update_all_calculations(self):
+        """모든 계산 업데이트"""
+        self.calculate_profit_loss()
+        if self.category == StockCategory.MEZZANINE:
+            self.calculate_parity()
+            self.calculate_parity_floor()
+    
+    def add_alert_price(self, price: float, alert_type: str, description: Optional[str] = None) -> bool:
+        """사용자 정의 알림 가격 추가"""
+        # 중복 체크
+        for alert_price in self.alert_prices:
+            if alert_price.price == price and alert_price.alert_type == alert_type:
+                return False
+        
+        self.alert_prices.append(AlertPrice(
+            price=price,
+            alert_type=alert_type,
+            description=description
+        ))
+        return True
+    
+    def remove_alert_price(self, price: float, alert_type: str) -> bool:
+        """사용자 정의 알림 가격 제거"""
+        for i, alert_price in enumerate(self.alert_prices):
+            if alert_price.price == price and alert_price.alert_type == alert_type:
+                del self.alert_prices[i]
+                return True
+        return False
+    
+    def is_alert_triggered(self, alert_id: str) -> bool:
+        """알림이 이미 발송되었는지 확인"""
+        return alert_id in self.triggered_alerts
+    
+    def mark_alert_triggered(self, alert_id: str):
+        """알림을 발송된 것으로 표시"""
+        if alert_id not in self.triggered_alerts:
+            self.triggered_alerts.append(alert_id)
+    
+    def reset_daily_alerts(self):
+        """일일 알림 상태 리셋"""
+        self.daily_up_alert_sent = False
+        self.daily_down_alert_sent = False
+        # 일일 알림 ID들만 제거 (take_profit, stop_loss 등은 유지)
+        daily_alert_ids = [alert_id for alert_id in self.triggered_alerts 
+                          if 'daily_' in alert_id or 'surge_' in alert_id or 'drop_' in alert_id]
+        for alert_id in daily_alert_ids:
+            self.triggered_alerts.remove(alert_id)
+    
+    def check_alert_prices(self, current_price: float) -> List[AlertPrice]:
+        """사용자 정의 알림 가격 체크"""
+        triggered = []
+        for alert_price in self.alert_prices:
+            if not alert_price.is_enabled:
+                continue
+                
+            alert_id = f"{alert_price.alert_type}_{alert_price.price}"
+            if self.is_alert_triggered(alert_id):
+                continue
+                
+            should_trigger = False
+            if alert_price.alert_type == "above" and current_price >= alert_price.price:
+                should_trigger = True
+            elif alert_price.alert_type == "below" and current_price <= alert_price.price:
+                should_trigger = True
+            elif alert_price.alert_type == "parity" and self.category == StockCategory.MEZZANINE:
+                if self.parity and self.parity >= alert_price.price:
+                    should_trigger = True
+                    
+            if should_trigger:
+                self.mark_alert_triggered(alert_id)
+                triggered.append(alert_price)
+                
+        return triggered
     
     def should_alert(self, current_price: float, change_rate: float) -> List[AlertType]:
-        """알림 조건 확인"""
+        """알림 조건 확인 (중복 방지 포함)"""
         alerts = []
         
         if not self.alert_enabled:
@@ -98,19 +225,27 @@ class MonitoringStock(BaseModel):
         
         # 목표가 달성
         if self.take_profit and current_price >= self.take_profit:
-            alerts.append(AlertType.TAKE_PROFIT)
+            alert_id = f"take_profit_{self.take_profit}"
+            if not self.is_alert_triggered(alert_id):
+                alerts.append(AlertType.TAKE_PROFIT)
+                self.mark_alert_triggered(alert_id)
         
         # 손절가 도달
         if self.stop_loss and current_price <= self.stop_loss:
-            alerts.append(AlertType.STOP_LOSS)
+            alert_id = f"stop_loss_{self.stop_loss}"
+            if not self.is_alert_triggered(alert_id):
+                alerts.append(AlertType.STOP_LOSS)
+                self.mark_alert_triggered(alert_id)
         
-        # 일일 급등
-        if change_rate >= self.daily_surge_threshold:
+        # 일일 급등 (하루에 한 번만)
+        if change_rate >= self.daily_surge_threshold and not self.daily_up_alert_sent:
             alerts.append(AlertType.DAILY_SURGE)
+            self.daily_up_alert_sent = True
         
-        # 일일 급락
-        if change_rate <= self.daily_drop_threshold:
+        # 일일 급락 (하루에 한 번만)
+        if change_rate <= self.daily_drop_threshold and not self.daily_down_alert_sent:
             alerts.append(AlertType.DAILY_DROP)
+            self.daily_down_alert_sent = True
         
         return alerts
 
@@ -276,24 +411,36 @@ class AddStockRequest(BaseModel):
     """주식 추가 요청 모델"""
     code: str = Field(..., description="종목코드")
     name: str = Field(..., description="종목명")
-    purchase_price: float = Field(..., description="취득가")
+    purchase_price: float = Field(..., description="취득가 (기존 호환성)")
+    acquisition_price: Optional[float] = Field(None, description="취득가 (새 필드)")
     quantity: int = Field(..., description="보유수량")
     take_profit: Optional[float] = Field(None, description="목표가")
     stop_loss: Optional[float] = Field(None, description="손절가")
     daily_surge_threshold: float = Field(5.0, description="일일 급등 임계값(%)")
     daily_drop_threshold: float = Field(-5.0, description="일일 급락 임계값(%)")
     alert_enabled: bool = Field(True, description="알림 활성화")
+    
+    # 메자닌 투자 관련 필드
+    category: StockCategory = Field(StockCategory.OTHER, description="종목 카테고리")
+    conversion_price: Optional[float] = Field(None, description="전환가격")
+    conversion_price_floor: Optional[float] = Field(None, description="전환가격 바닥가")
 
 
 class UpdateStockRequest(BaseModel):
     """주식 정보 업데이트 요청 모델"""
-    purchase_price: Optional[float] = Field(None, description="취득가")
+    purchase_price: Optional[float] = Field(None, description="취득가 (기존 호환성)")
+    acquisition_price: Optional[float] = Field(None, description="취득가 (새 필드)")
     quantity: Optional[int] = Field(None, description="보유수량")
     take_profit: Optional[float] = Field(None, description="목표가")
     stop_loss: Optional[float] = Field(None, description="손절가")
     daily_surge_threshold: Optional[float] = Field(None, description="일일 급등 임계값(%)")
     daily_drop_threshold: Optional[float] = Field(None, description="일일 급락 임계값(%)")
     alert_enabled: Optional[bool] = Field(None, description="알림 활성화")
+    
+    # 메자닌 투자 관련 필드
+    category: Optional[StockCategory] = Field(None, description="종목 카테고리")
+    conversion_price: Optional[float] = Field(None, description="전환가격")
+    conversion_price_floor: Optional[float] = Field(None, description="전환가격 바닥가")
 
 
 class AlertSettingsRequest(BaseModel):

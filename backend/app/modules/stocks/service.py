@@ -13,7 +13,7 @@ from app.config import settings
 from app.modules.stocks.models import (
     StockData, StockAlert, MonitoringStock, StockMonitoringData,
     StockMonitoringSettings, AlertType, MarketStatus, MarketInfo,
-    StockSearchResult, StockPriceHistory
+    StockSearchResult, StockPriceHistory, StockCategory, AlertPrice
 )
 from app.shared.email import send_stock_alert
 from app.shared.websocket import websocket_manager
@@ -220,7 +220,7 @@ class StockService:
             return {}
     
     async def check_price_alerts(self, stock_data: StockData) -> List[StockAlert]:
-        """가격 알림 체크"""
+        """가격 알림 체크 (복잡한 알림 시스템 포함)"""
         try:
             alerts = []
             monitoring_stock = self.monitoring_data.get_stock_by_code(stock_data.code)
@@ -228,21 +228,31 @@ class StockService:
             if not monitoring_stock or not monitoring_stock.alert_enabled:
                 return alerts
             
-            # 알림 조건 확인
+            # 현재가로 계산 업데이트
+            monitoring_stock.current_price = stock_data.current_price
+            monitoring_stock.change_rate = stock_data.change_rate
+            monitoring_stock.update_all_calculations()
+            
+            # 기본 알림 조건 확인 (새로운 알림 시스템 사용)
             alert_types = monitoring_stock.should_alert(stock_data.current_price, stock_data.change_rate)
             
             for alert_type in alert_types:
-                # 중복 알림 방지 (같은 종목, 같은 타입, 같은 날)
-                alert_key = f"{stock_data.code}_{alert_type}_{datetime.now().date()}"
-                if alert_key in self.triggered_alerts:
-                    continue
-                
                 # 알림 생성
                 alert = self._create_alert(stock_data, monitoring_stock, alert_type)
                 alerts.append(alert)
-                
-                # 중복 방지 키 추가
-                self.triggered_alerts.add(alert_key)
+            
+            # 사용자 정의 알림 가격 체크
+            triggered_alert_prices = monitoring_stock.check_alert_prices(stock_data.current_price)
+            
+            for alert_price in triggered_alert_prices:
+                # 사용자 정의 알림 생성
+                alert = self._create_custom_alert(stock_data, monitoring_stock, alert_price)
+                alerts.append(alert)
+            
+            # 메자닌 투자 전용 알림
+            if monitoring_stock.category == StockCategory.MEZZANINE:
+                mezzanine_alerts = self._check_mezzanine_alerts(stock_data, monitoring_stock)
+                alerts.extend(mezzanine_alerts)
             
             return alerts
             
@@ -275,6 +285,74 @@ class StockService:
             change_rate=stock_data.change_rate,
             message=messages[alert_type]
         )
+    
+    def _create_custom_alert(self, stock_data: StockData, monitoring_stock: MonitoringStock, alert_price: AlertPrice) -> StockAlert:
+        """사용자 정의 알림 생성"""
+        if alert_price.alert_type == "parity":
+            message = f"{stock_data.name} 패리티 {alert_price.price}% 달성! 현재 패리티: {monitoring_stock.parity:.2f}%"
+        elif alert_price.alert_type == "above":
+            message = f"{stock_data.name} 목표가 {alert_price.price:,.0f}원 달성! 현재가: {stock_data.current_price:,.0f}원"
+        elif alert_price.alert_type == "below":
+            message = f"{stock_data.name} 하한가 {alert_price.price:,.0f}원 도달! 현재가: {stock_data.current_price:,.0f}원"
+        else:
+            message = f"{stock_data.name} 사용자 정의 알림 발생! 현재가: {stock_data.current_price:,.0f}원"
+        
+        if alert_price.description:
+            message += f" ({alert_price.description})"
+        
+        return StockAlert(
+            stock_code=stock_data.code,
+            stock_name=stock_data.name,
+            alert_type=AlertType.CUSTOM,
+            target_price=alert_price.price,
+            current_price=stock_data.current_price,
+            change_rate=stock_data.change_rate,
+            message=message
+        )
+    
+    def _check_mezzanine_alerts(self, stock_data: StockData, monitoring_stock: MonitoringStock) -> List[StockAlert]:
+        """메자닌 투자 전용 알림 체크"""
+        alerts = []
+        
+        try:
+            if not monitoring_stock.parity:
+                return alerts
+            
+            # 패리티 100% 달성 알림
+            parity_100_id = f"parity_100_{stock_data.code}"
+            if monitoring_stock.parity >= 100 and not monitoring_stock.is_alert_triggered(parity_100_id):
+                alert = StockAlert(
+                    stock_code=stock_data.code,
+                    stock_name=stock_data.name,
+                    alert_type=AlertType.CUSTOM,
+                    target_price=100,
+                    current_price=stock_data.current_price,
+                    change_rate=stock_data.change_rate,
+                    message=f"🚀 {stock_data.name} 패리티 100% 돌파! 현재 패리티: {monitoring_stock.parity:.2f}%"
+                )
+                alerts.append(alert)
+                monitoring_stock.mark_alert_triggered(parity_100_id)
+            
+            # 패리티 80% 하락 경고
+            parity_80_id = f"parity_80_warning_{stock_data.code}"
+            if monitoring_stock.parity <= 80 and not monitoring_stock.is_alert_triggered(parity_80_id):
+                alert = StockAlert(
+                    stock_code=stock_data.code,
+                    stock_name=stock_data.name,
+                    alert_type=AlertType.CUSTOM,
+                    target_price=80,
+                    current_price=stock_data.current_price,
+                    change_rate=stock_data.change_rate,
+                    message=f"⚠️ {stock_data.name} 패리티 80% 하회! 현재 패리티: {monitoring_stock.parity:.2f}%"
+                )
+                alerts.append(alert)
+                monitoring_stock.mark_alert_triggered(parity_80_id)
+            
+            return alerts
+            
+        except Exception as e:
+            logger.error(f"메자닌 알림 체크 실패: {e}")
+            return []
     
     async def send_alerts(self, alerts: List[StockAlert]) -> int:
         """알림 발송"""
@@ -495,8 +573,14 @@ class StockService:
             return False
     
     def get_monitoring_stocks(self) -> List[MonitoringStock]:
-        """모니터링 주식 목록 조회"""
-        return self.monitoring_data.stocks
+        """모니터링 주식 목록 조회 (패리티 계산 포함)"""
+        stocks = self.monitoring_data.stocks.copy()
+        
+        # 각 종목의 계산 업데이트
+        for stock in stocks:
+            stock.update_all_calculations()
+            
+        return stocks
     
     def get_monitoring_stock(self, code: str) -> Optional[MonitoringStock]:
         """특정 모니터링 주식 조회"""
@@ -545,29 +629,82 @@ class StockService:
             return []
     
     def get_statistics(self) -> Dict[str, Any]:
-        """통계 정보 조회"""
+        """통계 정보 조회 (메자닌/기타 분류별)"""
         try:
+            # 전체 통계
             total_stocks = len(self.monitoring_data.stocks)
             active_stocks = len([s for s in self.monitoring_data.stocks if s.alert_enabled])
             
-            # 포트폴리오 계산
+            # 카테고리별 분류
+            mezzanine_stocks = [s for s in self.monitoring_data.stocks if s.category == StockCategory.MEZZANINE]
+            other_stocks = [s for s in self.monitoring_data.stocks if s.category == StockCategory.OTHER]
+            
+            # 전체 포트폴리오 계산
             total_value = 0
             total_profit_loss = 0
+            total_investment = 0
+            
+            # 메자닌 포트폴리오 계산
+            mezzanine_value = 0
+            mezzanine_profit_loss = 0
+            mezzanine_investment = 0
+            
+            # 기타 포트폴리오 계산
+            other_value = 0
+            other_profit_loss = 0
+            other_investment = 0
+            
             for stock in self.monitoring_data.stocks:
+                # 계산 업데이트
+                stock.update_all_calculations()
+                
+                investment = stock.effective_acquisition_price * stock.quantity
+                
                 if stock.current_price:
                     stock_value = stock.current_price * stock.quantity
+                    profit_loss = (stock.current_price - stock.effective_acquisition_price) * stock.quantity
+                    
                     total_value += stock_value
-                    total_profit_loss += (stock.current_price - stock.purchase_price) * stock.quantity
+                    total_profit_loss += profit_loss
+                    total_investment += investment
+                    
+                    if stock.category == StockCategory.MEZZANINE:
+                        mezzanine_value += stock_value
+                        mezzanine_profit_loss += profit_loss
+                        mezzanine_investment += investment
+                    else:
+                        other_value += stock_value
+                        other_profit_loss += profit_loss
+                        other_investment += investment
             
-            total_investment = sum(s.purchase_price * s.quantity for s in self.monitoring_data.stocks)
+            # 수익률 계산
             total_profit_loss_rate = (total_profit_loss / total_investment * 100) if total_investment > 0 else 0
+            mezzanine_profit_loss_rate = (mezzanine_profit_loss / mezzanine_investment * 100) if mezzanine_investment > 0 else 0
+            other_profit_loss_rate = (other_profit_loss / other_investment * 100) if other_investment > 0 else 0
             
             return {
+                # 전체 통계
                 "total_stocks": total_stocks,
                 "active_stocks": active_stocks,
                 "total_portfolio_value": total_value,
                 "total_profit_loss": total_profit_loss,
                 "total_profit_loss_rate": total_profit_loss_rate,
+                "total_investment": total_investment,
+                
+                # 메자닌 통계
+                "mezzanine_stocks": len(mezzanine_stocks),
+                "mezzanine_portfolio_value": mezzanine_value,
+                "mezzanine_profit_loss": mezzanine_profit_loss,
+                "mezzanine_profit_loss_rate": mezzanine_profit_loss_rate,
+                "mezzanine_investment": mezzanine_investment,
+                
+                # 기타 통계
+                "other_stocks": len(other_stocks),
+                "other_portfolio_value": other_value,
+                "other_profit_loss": other_profit_loss,
+                "other_profit_loss_rate": other_profit_loss_rate,
+                "other_investment": other_investment,
+                
                 "last_updated": self.monitoring_data.last_updated.isoformat() if self.monitoring_data.last_updated else None
             }
             
@@ -578,7 +715,16 @@ class StockService:
     def reset_daily_alerts(self):
         """일일 알림 리셋 (자정에 실행)"""
         try:
+            # 기존 알림 키 초기화
             self.triggered_alerts.clear()
+            
+            # 각 모니터링 종목의 일일 알림 상태 리셋
+            for stock in self.monitoring_data.stocks:
+                stock.reset_daily_alerts()
+            
+            # 데이터 저장
+            self._save_monitoring_data()
+            
             logger.info("일일 알림 리셋 완료")
         except Exception as e:
             logger.error(f"일일 알림 리셋 실패: {e}")

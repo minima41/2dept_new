@@ -144,6 +144,19 @@ export const api = {
     delete: (id: string) => apiClient.delete<any>(`/api/portfolio/${id}`),
     statistics: () => apiClient.get<any>('/api/portfolio/statistics'),
   },
+  
+  // 로그 API
+  logs: {
+    recent: (count: number = 100) => apiClient.get<any>(`/api/logs/recent?count=${count}`),
+    clear: () => apiClient.post<any>('/api/logs/clear'),
+    test: (level: string = 'info', message: string = '테스트 로그 메시지') => 
+      apiClient.post<any>(`/api/logs/test?level=${level}&message=${encodeURIComponent(message)}`),
+  },
+  
+  // 이메일 API
+  email: {
+    testDailySummary: () => apiClient.post<any>('/api/email/test-daily-summary'),
+  },
 }
 
 export default apiClient

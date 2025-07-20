@@ -47,6 +47,7 @@ interface AppState {
   addSystemStatus: (status: SystemStatus) => void
   addAlert: (alert: Omit<Alert, 'id'>) => void
   markAlertAsRead: (id: string) => void
+  removeAlert: (id: string) => void
   clearAlerts: () => void
   toggleSidebar: () => void
   toggleDarkMode: () => void
@@ -112,6 +113,15 @@ export const useAppStore = create<AppState>()(
             return state
           }),
         
+        removeAlert: (id) =>
+          set((state) => {
+            const alert = state.alerts.find(a => a.id === id)
+            return {
+              alerts: state.alerts.filter(a => a.id !== id),
+              unreadCount: alert && !alert.isRead ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+            }
+          }),
+
         clearAlerts: () =>
           set(() => ({
             alerts: [],
@@ -166,3 +176,11 @@ export const useSystemStatus = () => useAppStore(state => state.systemStatus)
 export const useRealtimeData = () => useAppStore(state => state.realtimeData)
 export const useSidebarOpen = () => useAppStore(state => state.sidebarOpen)
 export const useDarkMode = () => useAppStore(state => state.darkMode)
+
+// 알림 액션들
+export const useAlertActions = () => useAppStore(state => ({
+  addAlert: state.addAlert,
+  removeAlert: state.removeAlert,
+  markAlertAsRead: state.markAlertAsRead,
+  clearAlerts: state.clearAlerts,
+}))
