@@ -573,7 +573,7 @@ C:\2dept
 ### **⚠️ 중요: 올바른 실행 방법**
 
 - **금지**: `python app/main.py` 직접 실행 (ModuleNotFoundError 발생)
-- **필수**: `uvicorn app.main:app --reload` 사용
+- **필수**: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload` 사용
 - **실행 디렉토리**: 반드시 `C:\2dept\backend` 에서 실행
 
 ### 패키지 관리
@@ -581,6 +581,16 @@ C:\2dept
 - **의존성 설치**: `pip install -r requirements.txt`
 - **가상환경 권장**: `python -m venv venv` 후 활성화
 - **버전 호환성**: FastAPI 0.104.1, Starlette 0.27.0, AnyIO 3.7+ 조합 유지
+
+### 환경 설정 개선 규칙
+
+- **경로 설정 유연화**: config.py의 DATA_DIR, LOGS_DIR을 환경변수 기반으로 변경
+  ```python
+  DATA_DIR: str = os.getenv("DATA_DIR", "C:\\2dept\\data")
+  LOGS_DIR: str = os.getenv("LOGS_DIR", "C:\\2dept\\logs")
+  ```
+- **WSL2와 Windows 호환**: /mnt/c/ 경로 사용 금지, Windows 경로 사용
+- **네트워크 바인딩**: WSL2 환경에서는 반드시 --host 0.0.0.0 설정
 
 ## 코드 수정 규칙
 
@@ -642,7 +652,7 @@ C:\2dept
 
 ### 백엔드 테스트
 
-- **서버 실행**: `uvicorn app.main:app --reload`
+- **서버 실행**: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
 - **API 테스트**: `curl http://localhost:8000/health`
 - **로그 확인**: `C:\2dept\logs\app.log` 에러 확인
 
@@ -696,6 +706,7 @@ C:\2dept
 - **모듈 추가 시**: `__init__.py` 파일 생성
 - **API 엔드포인트 추가 시**: `main.py`에 라우터 등록
 - **데이터 모델 변경 시**: 관련 모든 모듈 확인
+- **실행 방법 변경 시**: `EXECUTION_GUIDE.md` 함께 업데이트
 
 ### 파일 간 의존성
 
