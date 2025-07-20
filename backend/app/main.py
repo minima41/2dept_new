@@ -24,6 +24,16 @@ async def lifespan(app: FastAPI):
     # 시작 시
     logger.info("FastAPI 애플리케이션 시작")
     
+    # 필수 디렉토리 생성
+    from pathlib import Path
+    data_dir = Path(settings.DATA_DIR)
+    logs_dir = Path(settings.LOGS_DIR)
+    
+    data_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"필수 디렉토리 확인/생성 완료: DATA_DIR={data_dir}, LOGS_DIR={logs_dir}")
+    
     # WebSocket 로그 핸들러 설정
     setup_websocket_logging(level=logging.INFO)
     logger.info("WebSocket 로그 스트리밍 설정 완료")

@@ -38,7 +38,7 @@ cd /mnt/c/2dept/backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python app/main.py
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # 3. 프론트엔드 실행 (새 터미널)
 cd /mnt/c/2dept/frontend
@@ -70,7 +70,7 @@ cd C:\2dept\backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python app\main.py
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # 4. 프론트엔드 실행 (새 터미널)
 cd C:\2dept\frontend

@@ -39,9 +39,9 @@ class Settings(BaseSettings):
     # WebSocket 설정
     MAX_WEBSOCKET_CONNECTIONS: int = 50
     
-    # 파일 경로 설정
-    DATA_DIR: str = "/mnt/c/2dept/backend/app/data"
-    LOGS_DIR: str = "/mnt/c/2dept/logs"
+    # 파일 경로 설정 (환경변수 우선, Windows/WSL2 호환)
+    DATA_DIR: str = os.getenv("DATA_DIR", "C:\\2dept\\backend\\app\\data" if os.name == "nt" else "/mnt/c/2dept/backend/app/data")
+    LOGS_DIR: str = os.getenv("LOGS_DIR", "C:\\2dept\\logs" if os.name == "nt" else "/mnt/c/2dept/logs")
     
     class Config:
         env_file = ".env"
