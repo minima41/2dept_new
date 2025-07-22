@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 
-const WS_URL = (import.meta as any).env.VITE_WS_URL || 'ws://localhost:8000'
+const WS_URL = (import.meta as any).env.VITE_WS_URL || 'ws://localhost:8002/ws'
 
 interface WebSocketMessage {
   type: string
@@ -161,7 +161,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     try {
       setConnectionStatus('connecting')
       
-      const ws = new WebSocket(`${WS_URL}/ws`)
+      const ws = new WebSocket(WS_URL)
       
       ws.onopen = () => {
         console.log('WebSocket connected')

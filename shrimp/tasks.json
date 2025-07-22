@@ -1,113 +1,219 @@
 {
   "tasks": [
     {
-      "id": "0fe3402b-9454-4fdf-97d6-3995a1cd1d49",
-      "name": "config.py 경로 설정 환경변수화",
-      "description": "backend/app/config.py 파일의 DATA_DIR과 LOGS_DIR을 하드코딩된 WSL 경로에서 환경변수 기반으로 변경. Windows와 WSL2 모두에서 작동하도록 개선",
-      "notes": "기존 Pydantic BaseSettings 구조 유지하면서 수정",
-      "status": "completed",
+      "id": "66dd7240-6273-43b6-9ea7-282c4a698fd8",
+      "name": "현재 서버 상태 진단 및 문제점 확인",
+      "description": "현재 백엔드 서버와 WebSocket 연결 상태를 진단하여 정확한 문제점을 파악합니다. 포트 사용 현황, 프로세스 상태, 로그 파일을 확인하고 연결 실패 원인을 명확히 합니다.",
+      "notes": "기존 서버가 실행 중이라면 종료 후 진단 진행. 로그 파일에서 WebSocket 관련 에러 메시지 중점 확인",
+      "status": "pending",
       "dependencies": [],
-      "createdAt": "2025-07-20T11:28:35.627Z",
-      "updatedAt": "2025-07-20T18:14:00.000Z",
-      "completedAt": "2025-07-20T18:14:00.000Z",
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
       "relatedFiles": [
         {
-          "path": "backend/app/config.py",
-          "type": "MODIFIED",
-          "description": "경로 설정을 환경변수 기반으로 수정 완료",
-          "lineStart": 42,
-          "lineEnd": 44
+          "path": "C:\\2dept\\backend\\app\\main.py",
+          "type": "REFERENCE",
+          "description": "현재 서버 설정 확인",
+          "lineStart": 1,
+          "lineEnd": 50
+        },
+        {
+          "path": "C:\\2dept\\logs",
+          "type": "REFERENCE",
+          "description": "로그 파일 확인",
+          "lineStart": 1,
+          "lineEnd": 100
         }
       ],
-      "implementationGuide": "1. config.py의 Settings 클래스에서 DATA_DIR과 LOGS_DIR 수정\n2. os.getenv() 사용하여 환경변수 우선 읽기\n3. 기본값을 Windows/WSL2 자동 감지로 설정\n4. os.name 조건부 로직 추가",
-      "verificationCriteria": "✅ 환경변수 DATA_DIR, LOGS_DIR 설정 시 우선 적용되고, 미설정 시 OS에 맞는 기본값 사용 확인",
-      "analysisResult": "✅ Windows/WSL2 환경 호환성 개선 완료. 환경변수 우선 적용 및 OS별 기본값 자동 설정 구현"
+      "implementationGuide": "1. 현재 실행 중인 서버 프로세스 확인 (netstat, ps 명령어 활용)\\n2. 백엔드 로그 파일 (C:\\2dept\\logs) 확인\\n3. curl을 이용한 기본 API 엔드포인트 연결 테스트\\n4. 프론트엔드에서 WebSocket 연결 시도 시 발생하는 정확한 에러 메시지 수집",
+      "verificationCriteria": "현재 포트 사용 현황이 명확히 파악되고, WebSocket 연결 실패의 구체적인 원인(포트 불일치, 바인딩 문제 등)이 확인되어야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
     },
     {
-      "id": "a5236940-cec1-49d3-98e9-e5227c23b98e",
-      "name": "디렉토리 자동 생성 로직 추가",
-      "description": "FastAPI 앱 시작 시 data와 logs 디렉토리가 없으면 자동으로 생성하는 로직을 main.py의 lifespan 함수에 추가",
-      "notes": "기존 lifespan 함수 구조 유지하면서 로직 추가",
-      "status": "completed",
+      "id": "08de9b1b-a5d4-4d72-95d0-fa6f5fd7342d",
+      "name": "백엔드 포트 설정을 8001로 수정",
+      "description": "FastAPI 백엔드의 포트 설정을 8001로 통일합니다. main.py의 uvicorn 실행 설정과 관련 구성 파일을 수정하여 일관된 포트 사용을 보장합니다.",
+      "notes": "기존 8000 포트에서 실행 중인 서버는 종료 필요. --host 0.0.0.0 설정이 유지되는지 확인",
+      "status": "pending",
       "dependencies": [
         {
-          "taskId": "0fe3402b-9454-4fdf-97d6-3995a1cd1d49"
+          "taskId": "66dd7240-6273-43b6-9ea7-282c4a698fd8"
         }
       ],
-      "createdAt": "2025-07-20T11:28:35.627Z",
-      "updatedAt": "2025-07-20T18:14:00.000Z",
-      "completedAt": "2025-07-20T18:14:00.000Z",
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
       "relatedFiles": [
         {
-          "path": "backend/app/main.py",
-          "type": "MODIFIED",
-          "description": "lifespan 함수에 디렉토리 자동 생성 로직 추가 완료",
-          "lineStart": 27,
-          "lineEnd": 35
-        }
-      ],
-      "implementationGuide": "1. main.py의 lifespan 함수 내부 시작 부분에 디렉토리 생성 로직 추가\n2. pathlib.Path 사용하여 settings.DATA_DIR과 settings.LOGS_DIR 확인\n3. Path.mkdir(parents=True, exist_ok=True)로 생성\n4. 로거로 디렉토리 생성 메시지 출력",
-      "verificationCriteria": "✅ 앱 시작 시 data와 logs 폴더 자동 생성되고, 이미 존재하는 경우 오류 없이 진행됨 확인",
-      "analysisResult": "✅ 디렉토리 자동 생성 로직 구현 완료. pathlib.Path 사용으로 크로스 플랫폼 호환성 확보"
-    },
-    {
-      "id": "b8b0c5ee-46b3-4a28-a24f-41644778f028",
-      "name": "EXECUTION_GUIDE.md 백엔드 실행 명령어 수정",
-      "description": "EXECUTION_GUIDE.md 파일에서 잘못된 백엔드 실행 명령어(python app/main.py)를 올바른 uvicorn 명령어로 수정",
-      "notes": "기존 문서 구조와 스타일 유지",
-      "status": "completed",
-      "dependencies": [],
-      "createdAt": "2025-07-20T11:28:35.627Z",
-      "updatedAt": "2025-07-20T18:14:00.000Z",
-      "completedAt": "2025-07-20T18:14:00.000Z",
-      "relatedFiles": [
+          "path": "C:\\2dept\\backend\\app\\main.py",
+          "type": "TO_MODIFY",
+          "description": "uvicorn 포트 설정 수정",
+          "lineStart": 85,
+          "lineEnd": 90
+        },
         {
-          "path": "EXECUTION_GUIDE.md",
-          "type": "MODIFIED",
-          "description": "백엔드 실행 명령어를 uvicorn으로 수정 완료"
+          "path": "C:\\2dept\\backend\\app\\config.py",
+          "type": "REFERENCE",
+          "description": "포트 관련 설정 확인",
+          "lineStart": 1,
+          "lineEnd": 100
         }
       ],
-      "implementationGuide": "1. EXECUTION_GUIDE.md에서 python app/main.py 검색\n2. uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload로 변경\n3. WSL, Windows 두 가지 실행 방법 모두 수정",
-      "verificationCriteria": "✅ 문서의 모든 백엔드 실행 명령어가 uvicorn 명령으로 수정되었음 확인",
-      "analysisResult": "✅ 실행 가이드 문서 개선 완료. 정확한 uvicorn 명령어로 백엔드 서버 실행 방법 업데이트"
+      "implementationGuide": "1. backend/app/main.py 파일의 __main__ 블록에서 uvicorn port를 8001로 수정\\n2. 필요 시 backend/.env 파일에 PORT=8001 환경변수 추가\\n3. config.py에서 포트 관련 설정이 있다면 함께 수정\\n4. 수정 후 git add 및 commit 수행",
+      "verificationCriteria": "main.py에서 uvicorn이 포트 8001로 실행되도록 설정되고, 서버 실행 시 8001 포트가 정상적으로 바인딩되어야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
     },
     {
-      "id": "c0fa6805-665e-408b-9252-02a19e280b67",
-      "name": ".env.example 파일 업데이트",
-      "description": "backend/.env.example 파일에 DATA_DIR과 LOGS_DIR 환경변수 예시 추가 및 Windows/WSL2 호환성 주석 개선",
-      "notes": "기존 .env.example 형식 유지하며 설명 보강",
-      "status": "completed",
+      "id": "150fa7be-7284-4bf3-88ea-f8b478d8ee51",
+      "name": "프론트엔드 WebSocket URL을 8001 포트로 수정",
+      "description": "프론트엔드의 .env 파일에서 WebSocket URL을 8001 포트로 수정하여 백엔드와 일치시킵니다. VITE_WS_URL과 VITE_API_URL을 모두 업데이트합니다.",
+      "notes": "프론트엔드 개발 서버가 실행 중이라면 재시작하여 환경변수 변경사항 반영",
+      "status": "pending",
       "dependencies": [
         {
-          "taskId": "0fe3402b-9454-4fdf-97d6-3995a1cd1d49"
+          "taskId": "08de9b1b-a5d4-4d72-95d0-fa6f5fd7342d"
         }
       ],
-      "createdAt": "2025-07-20T11:28:35.627Z",
-      "updatedAt": "2025-07-20T18:14:00.000Z",
-      "completedAt": "2025-07-20T18:14:00.000Z",
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
       "relatedFiles": [
         {
-          "path": "backend/.env.example",
-          "type": "MODIFIED",
-          "description": "환경변수 예시 및 Windows/WSL2 호환성 주석 추가 완료"
+          "path": "C:\\2dept\\frontend\\.env",
+          "type": "TO_MODIFY",
+          "description": "WebSocket 및 API URL 포트 수정",
+          "lineStart": 1,
+          "lineEnd": 5
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
+          "type": "REFERENCE",
+          "description": "WebSocket URL 사용 방식 확인",
+          "lineStart": 1,
+          "lineEnd": 20
         }
       ],
-      "implementationGuide": "1. backend/.env.example 파일의 파일 경로 설정 섹션 수정\n2. Windows/WSL2 예시 주석 추가\n3. 자동 기본값 사용에 대한 설명 추가",
-      "verificationCriteria": "✅ .env.example에 DATA_DIR과 LOGS_DIR 예시가 추가되고 Windows/WSL2 호환성 주석이 명확함 확인",
-      "analysisResult": "✅ 환경변수 템플릿 개선 완료. 사용자가 쉽게 이해할 수 있는 Windows/WSL2 호환성 가이드 추가"
+      "implementationGuide": "1. frontend/.env 파일에서 VITE_WS_URL을 ws://localhost:8001/ws로 수정\\n2. VITE_API_URL을 http://localhost:8001로 수정\\n3. useWebSocket.ts 훅에서 환경변수 사용 여부 확인\\n4. 수정 후 git add 및 commit 수행",
+      "verificationCriteria": "frontend/.env에서 모든 URL이 8001 포트로 설정되고, useWebSocket 훅이 올바른 URL을 사용하여 연결을 시도해야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+    },
+    {
+      "id": "16ff5493-9b28-4024-b6f8-f00194c051fb",
+      "name": "환경변수 템플릿 파일 완성 및 검증",
+      "description": "백엔드와 프론트엔드의 .env.example 파일을 완성하고 필수 환경변수가 누락되지 않도록 합니다. 팀원들이 쉽게 환경을 설정할 수 있도록 문서화합니다.",
+      "notes": "실제 .env 파일은 Git에 커밋하지 않도록 .gitignore 확인. 민감한 정보는 예시값으로 대체",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "150fa7be-7284-4bf3-88ea-f8b478d8ee51"
+        }
+      ],
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\.env.example",
+          "type": "TO_MODIFY",
+          "description": "백엔드 환경변수 템플릿 완성",
+          "lineStart": 1,
+          "lineEnd": 50
+        },
+        {
+          "path": "C:\\2dept\\frontend\\.env.example",
+          "type": "TO_MODIFY",
+          "description": "프론트엔드 환경변수 템플릿 완성",
+          "lineStart": 1,
+          "lineEnd": 10
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\config.py",
+          "type": "REFERENCE",
+          "description": "환경변수 검증 로직 확인",
+          "lineStart": 50,
+          "lineEnd": 80
+        }
+      ],
+      "implementationGuide": "1. backend/.env.example 파일에 모든 필수 환경변수 목록 작성\\n2. frontend/.env.example 파일에 VITE_ 접두사 변수들 정리\\n3. 각 환경변수에 대한 설명 주석 추가\\n4. README.md 또는 별도 문서에 환경 설정 가이드 작성\\n5. config.py의 환경변수 검증 로직 확인 및 개선",
+      "verificationCriteria": ".env.example 파일들이 모든 필수 환경변수를 포함하고 있으며, 새로운 팀원이 해당 템플릿을 복사하여 즉시 개발 환경을 구성할 수 있어야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+    },
+    {
+      "id": "81f4b6ca-15b5-42be-83ca-2d99d32259ba",
+      "name": "서버 실행 설정 최적화 및 시작 스크립트 작성",
+      "description": "uvicorn 서버 실행 설정을 최적화하고, 일관된 실행을 위한 스크립트를 작성합니다. PDF 권장사항에 따라 명시적 호스트 바인딩을 적용합니다.",
+      "notes": "WSL2 환경에서는 반드시 0.0.0.0 바인딩 사용. Windows에서 방화벽 설정도 고려",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "16ff5493-9b28-4024-b6f8-f00194c051fb"
+        }
+      ],
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\start_server.py",
+          "type": "CREATE",
+          "description": "서버 시작 스크립트 생성",
+          "lineStart": 1,
+          "lineEnd": 50
+        },
+        {
+          "path": "C:\\2dept\\backend\\app\\main.py",
+          "type": "TO_MODIFY",
+          "description": "uvicorn 실행 설정 최적화",
+          "lineStart": 85,
+          "lineEnd": 95
+        },
+        {
+          "path": "C:\\2dept\\EXECUTION_GUIDE.md",
+          "type": "TO_MODIFY",
+          "description": "실행 가이드 업데이트",
+          "lineStart": 1,
+          "lineEnd": 100
+        }
+      ],
+      "implementationGuide": "1. backend 디렉토리에 start_server.py 또는 start_server.sh 스크립트 작성\\n2. uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload 명령어 포함\\n3. main.py의 __main__ 블록도 동일한 설정으로 수정\\n4. 프로덕션과 개발 환경별 설정 옵션 구분\\n5. 서버 시작 전 필수 디렉토리 및 환경 검증 로직 추가",
+      "verificationCriteria": "최적화된 설정으로 서버가 8001 포트에서 정상 실행되고, health check 엔드포인트(http://localhost:8001/health)가 정상 응답해야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+    },
+    {
+      "id": "c1fd6d3b-5454-4e01-8781-53565f99dd5a",
+      "name": "WebSocket 연결 및 실시간 통신 통합 테스트",
+      "description": "수정된 설정으로 WebSocket 연결을 테스트하고 실시간 메시지 송수신이 정상적으로 작동하는지 검증합니다. 프론트엔드-백엔드 통합 테스트를 수행합니다.",
+      "notes": "연결 실패 시 방화벽, 포트 충돌, 바인딩 문제를 순차적으로 확인. 로그 파일에서 상세 에러 정보 수집",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "81f4b6ca-15b5-42be-83ca-2d99d32259ba"
+        }
+      ],
+      "createdAt": "2025-07-21T12:15:25.843Z",
+      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\backend\\app\\main.py",
+          "type": "REFERENCE",
+          "description": "WebSocket 엔드포인트 확인",
+          "lineStart": 70,
+          "lineEnd": 80
+        },
+        {
+          "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
+          "type": "REFERENCE",
+          "description": "WebSocket 연결 로직 확인",
+          "lineStart": 100,
+          "lineEnd": 150
+        },
+        {
+          "path": "C:\\2dept\\logs",
+          "type": "REFERENCE",
+          "description": "연결 로그 확인",
+          "lineStart": 1,
+          "lineEnd": 100
+        }
+      ],
+      "implementationGuide": "1. 백엔드 서버를 8001 포트로 시작\\n2. curl http://localhost:8001/health로 API 연결 확인\\n3. 프론트엔드 개발 서버 시작 후 WebSocket 연결 상태 확인\\n4. 브라우저 개발자 도구에서 WebSocket 연결 로그 확인\\n5. 테스트 로그 메시지 API(/api/logs/test) 호출하여 실시간 메시지 전송 테스트\\n6. ping/pong 메시지 교환 정상 여부 확인",
+      "verificationCriteria": "WebSocket 연결이 성공적으로 설정되고(connectionStatus: 'connected'), 실시간 메시지가 정상적으로 송수신되며, 브라우저에서 WebSocket 연결 상태가 'Connected'로 표시되어야 함",
+      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
     }
-  ],
-  "summary": {
-    "totalTasks": 4,
-    "completedTasks": 4,
-    "completionRate": "100%",
-    "completedAt": "2025-07-20T18:14:00.000Z",
-    "objective": "2dept 프로젝트의 Windows/WSL2 환경 호환성 개선",
-    "keyAchievements": [
-      "환경변수 기반 경로 설정으로 크로스 플랫폼 호환성 확보",
-      "앱 시작 시 필수 디렉토리 자동 생성으로 사용자 편의성 향상",
-      "정확한 백엔드 실행 명령어로 문서 개선",
-      "명확한 환경변수 템플릿으로 설정 가이드 제공"
-    ]
-  }
+  ]
 }

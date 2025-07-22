@@ -1,5 +1,34 @@
 # 🚀 투자본부 모니터링 시스템 실행 가이드
 
+## 🎯 최신 업데이트 (2025-07-21)
+- WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 완료
+- 모든 서버 포트를 8001로 통일
+- 서버 시작 스크립트 최적화
+
+## 📋 빠른 시작 가이드
+
+### 1️⃣ 백엔드 서버 실행
+```bash
+# 방법 1: 최적화된 시작 스크립트 사용 (권장)
+cd /mnt/c/2dept/backend
+python3 start_server.py
+
+# 방법 2: 직접 실행
+cd /mnt/c/2dept/backend
+python3 app/main.py
+```
+
+### 2️⃣ 프론트엔드 개발 서버 실행
+```bash
+cd /mnt/c/2dept/frontend
+npm run dev
+```
+
+### 3️⃣ 연결 확인
+- **API**: http://localhost:8001/health
+- **프론트엔드**: http://localhost:3000
+- **WebSocket**: ws://localhost:8001/ws
+
 ## ✅ 시스템 실행 확인 완료
 
 ### 프론트엔드 실행 성공 ✅

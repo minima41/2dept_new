@@ -15,7 +15,7 @@ from app.modules.stocks.router import router as stocks_router
 from app.modules.stocks.monitor import start_stock_monitoring, stop_stock_monitoring
 
 # 통합 로깅 시스템 사용
-from app.utils.logger import app_logger as logger
+from app.utils.logger import app_logger as logger, cleanup_oversized_logs
 
 
 @asynccontextmanager
@@ -37,6 +37,10 @@ async def lifespan(app: FastAPI):
     # WebSocket 로그 핸들러 설정
     setup_websocket_logging(level=logging.INFO)
     logger.info("WebSocket 로그 스트리밍 설정 완료")
+    
+    # 시작 시 로그 파일 정리
+    cleanup_oversized_logs()
+    logger.info("로그 파일 크기 확인 및 정리 완료")
     
     await init_db()
     
@@ -104,6 +108,18 @@ async def clear_logs():
     log_handler.clear_logs()
     logger.info("로그 메시지가 클리어되었습니다")
     return {"message": "로그가 클리어되었습니다"}
+
+
+@app.post("/api/logs/rotate")
+async def rotate_logs():
+    """로그 파일 수동 로테이션"""
+    try:
+        cleanup_oversized_logs()
+        logger.info("로그 파일 수동 로테이션 완료")
+        return {"message": "로그 파일이 성공적으로 로테이션되었습니다", "success": True}
+    except Exception as e:
+        logger.error(f"로그 로테이션 실패: {e}")
+        return {"message": f"로그 로테이션 실패: {e}", "success": False}
 
 
 @app.post("/api/logs/test")
@@ -176,9 +192,8 @@ app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=8002,
         log_level="info"
     )

@@ -86,20 +86,45 @@ def setup_logger(
             backupCount=backup_count,
             encoding='utf-8'
         )
-    except (PermissionError, OSError):
-        # WSL 환경에서 권한 문제 시 일반 파일 핸들러 사용
-        file_handler = logging.FileHandler(
-            file_path,
-            encoding='utf-8'
+    except (PermissionError, OSError) as e:
+        # WSL 환경에서 권한 문제 시 대체 방안 시도
+        print(f"RotatingFileHandler 생성 실패: {e}")
+        
+        try:
+            # 먼저 로그 디렉토리 권한 확인 및 생성
+            LOG_DIR.chmod(0o755)
+            file_handler = logging.handlers.RotatingFileHandler(
+                file_path,
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding='utf-8'
+            )
+            print(f"권한 조정 후 RotatingFileHandler 생성 성공: {file_path}")
+        except (PermissionError, OSError) as e2:
+            print(f"권한 조정 후에도 RotatingFileHandler 실패: {e2}")
+            # 최종 fallback: 일반 FileHandler 사용
+            try:
+                file_handler = logging.FileHandler(
+                    file_path,
+                    encoding='utf-8'
+                )
+                print(f"FileHandler로 fallback 성공: {file_path}")
+            except Exception as e3:
+                print(f"모든 핸들러 생성 실패: {e3}")
+                # 콘솔 전용으로 동작
+                file_handler = None
+    # 파일 핸들러가 성공적으로 생성된 경우에만 추가
+    if file_handler is not None:
+        file_handler.setLevel(level)
+        
+        # 파일용 포매터 (색상 없음)
+        file_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
         )
-    file_handler.setLevel(level)
-    
-    # 파일용 포매터 (색상 없음)
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-    )
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+    else:
+        print(f"파일 핸들러 생성 실패 - {name} 로거는 콘솔 출력만 사용합니다")
     
     # 콘솔 핸들러 설정
     if console_output:
@@ -172,6 +197,90 @@ def log_function_call(logger: Optional[logging.Logger] = None):
         return wrapper
     return decorator
 
+
+def manual_log_rotation(log_file: str, max_size_mb: int = 10, keep_files: int = 3):
+    """
+    WSL2 환경에서 RotatingFileHandler가 실패할 경우를 대비한 수동 로그 로테이션
+    
+    Args:
+        log_file: 로그 파일명 (확장자 포함)
+        max_size_mb: 최대 파일 크기 (MB)
+        keep_files: 보관할 백업 파일 수
+    """
+    log_path = LOG_DIR / log_file
+    
+    # 파일이 존재하지 않으면 무시
+    if not log_path.exists():
+        return
+    
+    # 파일 크기 확인
+    file_size_mb = log_path.stat().st_size / (1024 * 1024)
+    
+    if file_size_mb > max_size_mb:
+        print(f"로그 파일 크기 초과 ({file_size_mb:.1f}MB > {max_size_mb}MB) - 수동 로테이션 시작")
+        
+        try:
+            # WSL2에서 rename 실패 시 복사 후 삭제 방식 사용
+            import shutil
+            import tempfile
+            
+            # 기존 백업 파일들 순환
+            for i in range(keep_files - 1, 0, -1):
+                old_backup = LOG_DIR / f"{log_file}.{i}"
+                new_backup = LOG_DIR / f"{log_file}.{i + 1}"
+                
+                if old_backup.exists():
+                    if new_backup.exists():
+                        new_backup.unlink()  # 기존 파일 삭제
+                    shutil.move(str(old_backup), str(new_backup))
+            
+            # 현재 로그 파일을 .1으로 백업
+            backup_file = LOG_DIR / f"{log_file}.1"
+            if backup_file.exists():
+                backup_file.unlink()
+            
+            # 원본 파일의 마지막 몇 줄만 보관하고 나머지는 백업으로 이동
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            
+            # 마지막 1000줄만 보관
+            keep_lines = 1000
+            if len(lines) > keep_lines:
+                # 오래된 줄들을 백업에 저장
+                with open(backup_file, 'w', encoding='utf-8') as f:
+                    f.writelines(lines[:-keep_lines])
+                
+                # 최근 줄들만 원본에 유지
+                with open(log_path, 'w', encoding='utf-8') as f:
+                    f.writelines(lines[-keep_lines:])
+            
+            print(f"수동 로그 로테이션 완료: {log_file}")
+            
+        except Exception as e:
+            print(f"수동 로그 로테이션 실패 ({log_file}): {e}")
+            # 최후의 방법: 파일 내용을 간단히 자르기
+            try:
+                with open(log_path, 'r+', encoding='utf-8', errors='ignore') as f:
+                    f.seek(0)
+                    lines = f.readlines()
+                    if len(lines) > 1000:
+                        f.seek(0)
+                        f.writelines(lines[-1000:])
+                        f.truncate()
+                print(f"로그 파일 내용 축소 완료: {log_file}")
+            except Exception as e2:
+                print(f"로그 파일 축소도 실패: {e2}")
+
+
+def cleanup_oversized_logs():
+    """
+    크기가 큰 로그 파일들을 자동으로 로테이션
+    """
+    log_files = ["app.log", "dart_monitor.log", "stock_manager.log", "email.log", "error.log"]
+    
+    for log_file in log_files:
+        manual_log_rotation(log_file, max_size_mb=10, keep_files=3)
+
 # 기본 로거들 설정
 app_logger = setup_logger("app", "app.log")
 dart_logger = setup_logger("dart_monitor", "dart_monitor.log")
@@ -184,6 +293,8 @@ __all__ = [
     'setup_logger',
     'auto_retry', 
     'log_function_call',
+    'manual_log_rotation',
+    'cleanup_oversized_logs',
     'app_logger',
     'dart_logger',
     'stock_logger',
