@@ -208,3 +208,34 @@ logs/
 backend/app/data/processed_ids.txt
 backend/app/data/monitoring_stocks.json
 backend/app/data/notifications.json
+
+# Browser automation & screenshots
+browser-state-*.json
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Test files
+test-*.js
+test-*.py
+test_*.py
+debug_*.py
+monitoring-test.js
+full-monitoring-test.js
+simple-check.js
+quick-check.js
+check-*.js
+check_*.js
+
+# Development reports
+*_REPORT.md
+PROBLEM_*.md
+PERFORMANCE_*.md
+
+# Claude workspace
+.claude/
+SuperClaude/
+
+# Shrimp memory
+shrimp/memory/

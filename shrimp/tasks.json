@@ -1,219 +1,153 @@
 {
   "tasks": [
     {
-      "id": "66dd7240-6273-43b6-9ea7-282c4a698fd8",
-      "name": "현재 서버 상태 진단 및 문제점 확인",
-      "description": "현재 백엔드 서버와 WebSocket 연결 상태를 진단하여 정확한 문제점을 파악합니다. 포트 사용 현황, 프로세스 상태, 로그 파일을 확인하고 연결 실패 원인을 명확히 합니다.",
-      "notes": "기존 서버가 실행 중이라면 종료 후 진단 진행. 로그 파일에서 WebSocket 관련 에러 메시지 중점 확인",
-      "status": "pending",
+      "id": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc",
+      "name": "프론트엔드 API 클라이언트 포트 설정 수정",
+      "description": "apiClient.ts 파일의 API_BASE_URL을 잘못된 포트 8892에서 정상 포트 8000으로 변경하여 백엔드와의 연결을 복구합니다. 동시에 환경변수 설정을 정규화하고 하드코딩된 URL을 정리합니다.",
+      "notes": "백엔드 서버가 포트 8000에서 정상 동작 중이므로 즉시 연결 가능해집니다. 환경변수 설정도 함께 정리하여 향후 포트 변경 시 유연하게 대응할 수 있도록 합니다.",
+      "status": "in_progress",
       "dependencies": [],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "createdAt": "2025-07-25T13:46:59.392Z",
+      "updatedAt": "2025-07-25T13:47:11.247Z",
+      "relatedFiles": [
+        {
+          "path": "C:\\2dept\\frontend\\src\\services\\apiClient.ts",
+          "type": "TO_MODIFY",
+          "description": "API 베이스 URL 포트 변경 및 환경변수 설정 정규화",
+          "lineStart": 3,
+          "lineEnd": 6
+        }
+      ],
+      "implementationGuide": "1. apiClient.ts 파일 열기\\n2. API_BASE_URL 상수를 'http://localhost:8000'으로 변경\\n3. 환경변수 주석 처리된 부분 활성화 검토\\n4. 포트 8892 관련 모든 참조 제거\\n5. 개발/운영 환경 구분 로직 점검",
+      "verificationCriteria": "수정 후 브라우저에서 API 호출이 성공하고 실제 백엔드 데이터가 반환되는지 확인. curl 명령어로 엔드포인트 테스트 가능해야 함.",
+      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
+    },
+    {
+      "id": "d374bdef-5307-4b93-8f2b-a81df7b3d2b5",
+      "name": "백엔드 API 엔드포인트 연결 검증",
+      "description": "프론트엔드에서 사용하는 주요 API 엔드포인트들이 정상적으로 호출되고 실제 데이터를 반환하는지 테스트합니다. DART 공시 데이터, 주가 모니터링 데이터, 설정 등의 API 응답을 확인합니다.",
+      "notes": "백엔드가 이미 실제 데이터를 반환하고 있으므로 API 연결만 복구되면 즉시 정상 동작할 것입니다. 각 엔드포인트별로 데이터 형식과 내용을 확인하여 프론트엔드 컴포넌트에서 올바르게 파싱되는지 점검합니다.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc"
+        }
+      ],
+      "createdAt": "2025-07-25T13:46:59.392Z",
+      "updatedAt": "2025-07-25T13:46:59.392Z",
       "relatedFiles": [
         {
           "path": "C:\\2dept\\backend\\app\\main.py",
           "type": "REFERENCE",
-          "description": "현재 서버 설정 확인",
-          "lineStart": 1,
-          "lineEnd": 50
+          "description": "백엔드 API 엔드포인트 라우팅 확인",
+          "lineStart": 100,
+          "lineEnd": 120
         },
         {
-          "path": "C:\\2dept\\logs",
+          "path": "C:\\2dept\\backend\\app\\data\\monitoring_stocks.json",
           "type": "REFERENCE",
-          "description": "로그 파일 확인",
-          "lineStart": 1,
-          "lineEnd": 100
+          "description": "실제 주가 모니터링 데이터 확인"
         }
       ],
-      "implementationGuide": "1. 현재 실행 중인 서버 프로세스 확인 (netstat, ps 명령어 활용)\\n2. 백엔드 로그 파일 (C:\\2dept\\logs) 확인\\n3. curl을 이용한 기본 API 엔드포인트 연결 테스트\\n4. 프론트엔드에서 WebSocket 연결 시도 시 발생하는 정확한 에러 메시지 수집",
-      "verificationCriteria": "현재 포트 사용 현황이 명확히 파악되고, WebSocket 연결 실패의 구체적인 원인(포트 불일치, 바인딩 문제 등)이 확인되어야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+      "implementationGuide": "1. 브라우저 개발자 도구 Network 탭 열기\\n2. 주요 API 엔드포인트 직접 호출 테스트:\\n   - /api/stocks/monitoring (주가 데이터)\\n   - /api/dart/disclosures (공시 데이터)\\n   - /api/dart/keywords (키워드 설정)\\n   - /health (헬스체크)\\n3. 응답 데이터 구조 및 내용 검증\\n4. 에러 응답 처리 로직 확인",
+      "verificationCriteria": "모든 주요 API 엔드포인트가 정상 응답하고 실제 데이터를 반환해야 함. CORS 에러나 네트워크 오류가 발생하지 않아야 함.",
+      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
     },
     {
-      "id": "08de9b1b-a5d4-4d72-95d0-fa6f5fd7342d",
-      "name": "백엔드 포트 설정을 8001로 수정",
-      "description": "FastAPI 백엔드의 포트 설정을 8001로 통일합니다. main.py의 uvicorn 실행 설정과 관련 구성 파일을 수정하여 일관된 포트 사용을 보장합니다.",
-      "notes": "기존 8000 포트에서 실행 중인 서버는 종료 필요. --host 0.0.0.0 설정이 유지되는지 확인",
+      "id": "256b0c2d-2346-4bd9-b6b0-9072520d2f34",
+      "name": "프론트엔드 컴포넌트의 실제 데이터 렌더링 확인",
+      "description": "주가 모니터링 페이지, DART 공시 페이지 등 주요 컴포넌트에서 샘플 데이터 대신 백엔드에서 받은 실제 데이터가 올바르게 표시되는지 확인하고 필요시 데이터 파싱 로직을 수정합니다.",
+      "notes": "백엔드 API 연결이 복구되면 React Query를 통해 자동으로 실제 데이터가 로드될 것입니다. 하드코딩된 샘플 데이터가 있다면 제거하고 API 응답 데이터만 사용하도록 수정합니다.",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "66dd7240-6273-43b6-9ea7-282c4a698fd8"
+          "taskId": "d374bdef-5307-4b93-8f2b-a81df7b3d2b5"
         }
       ],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "createdAt": "2025-07-25T13:46:59.392Z",
+      "updatedAt": "2025-07-25T13:46:59.392Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\backend\\app\\main.py",
+          "path": "C:\\2dept\\frontend\\src\\pages\\StocksPage.tsx",
           "type": "TO_MODIFY",
-          "description": "uvicorn 포트 설정 수정",
-          "lineStart": 85,
-          "lineEnd": 90
+          "description": "주가 데이터 렌더링 로직 확인 및 샘플 데이터 제거"
         },
         {
-          "path": "C:\\2dept\\backend\\app\\config.py",
-          "type": "REFERENCE",
-          "description": "포트 관련 설정 확인",
-          "lineStart": 1,
-          "lineEnd": 100
+          "path": "C:\\2dept\\frontend\\src\\pages\\DartPage.tsx",
+          "type": "TO_MODIFY",
+          "description": "DART 공시 데이터 렌더링 로직 확인"
         }
       ],
-      "implementationGuide": "1. backend/app/main.py 파일의 __main__ 블록에서 uvicorn port를 8001로 수정\\n2. 필요 시 backend/.env 파일에 PORT=8001 환경변수 추가\\n3. config.py에서 포트 관련 설정이 있다면 함께 수정\\n4. 수정 후 git add 및 commit 수행",
-      "verificationCriteria": "main.py에서 uvicorn이 포트 8001로 실행되도록 설정되고, 서버 실행 시 8001 포트가 정상적으로 바인딩되어야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+      "implementationGuide": "1. 주가 모니터링 페이지 (StocksPage) 접속\\n2. 실제 주가 데이터 표시 여부 확인:\\n   - 삼성전자, SK하이닉스, NAVER, LG전자 실시간 가격\\n   - 변동률, 거래량 정보\\n   - 목표가/손절가 설정값\\n3. DART 공시 페이지에서 실제 공시 데이터 확인\\n4. 샘플 데이터 하드코딩 부분 제거\\n5. 로딩 상태 및 에러 처리 개선",
+      "verificationCriteria": "프론트엔드 페이지에서 실제 백엔드 데이터가 정상 표시되고 샘플 데이터나 하드코딩된 값이 나타나지 않아야 함. 실시간 가격 업데이트가 정상 동작해야 함.",
+      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
     },
     {
-      "id": "150fa7be-7284-4bf3-88ea-f8b478d8ee51",
-      "name": "프론트엔드 WebSocket URL을 8001 포트로 수정",
-      "description": "프론트엔드의 .env 파일에서 WebSocket URL을 8001 포트로 수정하여 백엔드와 일치시킵니다. VITE_WS_URL과 VITE_API_URL을 모두 업데이트합니다.",
-      "notes": "프론트엔드 개발 서버가 실행 중이라면 재시작하여 환경변수 변경사항 반영",
+      "id": "16727f61-91d0-4be2-8a1a-15a42cfafc35",
+      "name": "WebSocket 실시간 통신 연결 및 이벤트 수신 확인",
+      "description": "WebSocket 연결이 정상적으로 이루어지고 실시간 주가 업데이트, DART 알림 등의 이벤트가 올바르게 수신되어 UI에 반영되는지 확인합니다. useWebSocket 훅의 동작을 점검하고 연결 문제를 해결합니다.",
+      "notes": "WebSocket은 이미 올바른 포트(8000)로 설정되어 있어 정상 동작할 것으로 예상됩니다. 연결 상태를 확인하고 실시간 데이터 수신이 UI에 반영되는지 점검합니다.",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "08de9b1b-a5d4-4d72-95d0-fa6f5fd7342d"
+          "taskId": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc"
         }
       ],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "createdAt": "2025-07-25T13:46:59.392Z",
+      "updatedAt": "2025-07-25T13:46:59.392Z",
       "relatedFiles": [
-        {
-          "path": "C:\\2dept\\frontend\\.env",
-          "type": "TO_MODIFY",
-          "description": "WebSocket 및 API URL 포트 수정",
-          "lineStart": 1,
-          "lineEnd": 5
-        },
         {
           "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
           "type": "REFERENCE",
-          "description": "WebSocket URL 사용 방식 확인",
-          "lineStart": 1,
-          "lineEnd": 20
-        }
-      ],
-      "implementationGuide": "1. frontend/.env 파일에서 VITE_WS_URL을 ws://localhost:8001/ws로 수정\\n2. VITE_API_URL을 http://localhost:8001로 수정\\n3. useWebSocket.ts 훅에서 환경변수 사용 여부 확인\\n4. 수정 후 git add 및 commit 수행",
-      "verificationCriteria": "frontend/.env에서 모든 URL이 8001 포트로 설정되고, useWebSocket 훅이 올바른 URL을 사용하여 연결을 시도해야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
-    },
-    {
-      "id": "16ff5493-9b28-4024-b6f8-f00194c051fb",
-      "name": "환경변수 템플릿 파일 완성 및 검증",
-      "description": "백엔드와 프론트엔드의 .env.example 파일을 완성하고 필수 환경변수가 누락되지 않도록 합니다. 팀원들이 쉽게 환경을 설정할 수 있도록 문서화합니다.",
-      "notes": "실제 .env 파일은 Git에 커밋하지 않도록 .gitignore 확인. 민감한 정보는 예시값으로 대체",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "150fa7be-7284-4bf3-88ea-f8b478d8ee51"
-        }
-      ],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\2dept\\backend\\.env.example",
-          "type": "TO_MODIFY",
-          "description": "백엔드 환경변수 템플릿 완성",
-          "lineStart": 1,
-          "lineEnd": 50
-        },
-        {
-          "path": "C:\\2dept\\frontend\\.env.example",
-          "type": "TO_MODIFY",
-          "description": "프론트엔드 환경변수 템플릿 완성",
-          "lineStart": 1,
-          "lineEnd": 10
-        },
-        {
-          "path": "C:\\2dept\\backend\\app\\config.py",
-          "type": "REFERENCE",
-          "description": "환경변수 검증 로직 확인",
-          "lineStart": 50,
-          "lineEnd": 80
-        }
-      ],
-      "implementationGuide": "1. backend/.env.example 파일에 모든 필수 환경변수 목록 작성\\n2. frontend/.env.example 파일에 VITE_ 접두사 변수들 정리\\n3. 각 환경변수에 대한 설명 주석 추가\\n4. README.md 또는 별도 문서에 환경 설정 가이드 작성\\n5. config.py의 환경변수 검증 로직 확인 및 개선",
-      "verificationCriteria": ".env.example 파일들이 모든 필수 환경변수를 포함하고 있으며, 새로운 팀원이 해당 템플릿을 복사하여 즉시 개발 환경을 구성할 수 있어야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
-    },
-    {
-      "id": "81f4b6ca-15b5-42be-83ca-2d99d32259ba",
-      "name": "서버 실행 설정 최적화 및 시작 스크립트 작성",
-      "description": "uvicorn 서버 실행 설정을 최적화하고, 일관된 실행을 위한 스크립트를 작성합니다. PDF 권장사항에 따라 명시적 호스트 바인딩을 적용합니다.",
-      "notes": "WSL2 환경에서는 반드시 0.0.0.0 바인딩 사용. Windows에서 방화벽 설정도 고려",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "16ff5493-9b28-4024-b6f8-f00194c051fb"
-        }
-      ],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\2dept\\backend\\start_server.py",
-          "type": "CREATE",
-          "description": "서버 시작 스크립트 생성",
-          "lineStart": 1,
-          "lineEnd": 50
+          "description": "WebSocket 연결 로직 및 이벤트 처리 확인",
+          "lineStart": 8,
+          "lineEnd": 15
         },
         {
           "path": "C:\\2dept\\backend\\app\\main.py",
-          "type": "TO_MODIFY",
-          "description": "uvicorn 실행 설정 최적화",
+          "type": "REFERENCE",
+          "description": "백엔드 WebSocket 엔드포인트 확인",
           "lineStart": 85,
           "lineEnd": 95
-        },
-        {
-          "path": "C:\\2dept\\EXECUTION_GUIDE.md",
-          "type": "TO_MODIFY",
-          "description": "실행 가이드 업데이트",
-          "lineStart": 1,
-          "lineEnd": 100
         }
       ],
-      "implementationGuide": "1. backend 디렉토리에 start_server.py 또는 start_server.sh 스크립트 작성\\n2. uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload 명령어 포함\\n3. main.py의 __main__ 블록도 동일한 설정으로 수정\\n4. 프로덕션과 개발 환경별 설정 옵션 구분\\n5. 서버 시작 전 필수 디렉토리 및 환경 검증 로직 추가",
-      "verificationCriteria": "최적화된 설정으로 서버가 8001 포트에서 정상 실행되고, health check 엔드포인트(http://localhost:8001/health)가 정상 응답해야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+      "implementationGuide": "1. useWebSocket 훅에서 WS_URL 포트 확인 (현재 8000으로 설정됨)\\n2. 브라우저 개발자 도구 Network 탭에서 WebSocket 연결 상태 모니터링\\n3. WebSocket 메시지 송수신 로그 확인\\n4. 실시간 이벤트 수신 테스트:\\n   - stock_update 이벤트\\n   - dart_update 이벤트\\n   - system_status 이벤트\\n5. 연결 끊김 시 자동 재연결 로직 테스트",
+      "verificationCriteria": "WebSocket 연결이 성공하고 실시간 데이터 업데이트가 프론트엔드 UI에 즉시 반영되어야 함. 연결 끊김 시 자동 재연결이 동작해야 함.",
+      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
     },
     {
-      "id": "c1fd6d3b-5454-4e01-8781-53565f99dd5a",
-      "name": "WebSocket 연결 및 실시간 통신 통합 테스트",
-      "description": "수정된 설정으로 WebSocket 연결을 테스트하고 실시간 메시지 송수신이 정상적으로 작동하는지 검증합니다. 프론트엔드-백엔드 통합 테스트를 수행합니다.",
-      "notes": "연결 실패 시 방화벽, 포트 충돌, 바인딩 문제를 순차적으로 확인. 로그 파일에서 상세 에러 정보 수집",
+      "id": "3dd5de97-a8de-47c3-9662-831dd988500a",
+      "name": "환경변수 및 설정 파일 통합 정리",
+      "description": "프론트엔드와 백엔드의 환경변수 설정을 정리하여 향후 포트 변경이나 환경 전환 시 일관성을 유지할 수 있도록 개선합니다. .env 파일들을 점검하고 설정값을 통일합니다.",
+      "notes": "현재 하드코딩된 URL들을 환경변수로 관리하여 환경별 설정 변경을 용이하게 만듭니다. 개발 환경에서는 localhost, 운영 환경에서는 실제 서버 주소로 쉽게 전환할 수 있도록 설정합니다.",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "81f4b6ca-15b5-42be-83ca-2d99d32259ba"
+          "taskId": "256b0c2d-2346-4bd9-b6b0-9072520d2f34"
         }
       ],
-      "createdAt": "2025-07-21T12:15:25.843Z",
-      "updatedAt": "2025-07-21T12:15:25.843Z",
+      "createdAt": "2025-07-25T13:46:59.392Z",
+      "updatedAt": "2025-07-25T13:46:59.392Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\backend\\app\\main.py",
-          "type": "REFERENCE",
-          "description": "WebSocket 엔드포인트 확인",
-          "lineStart": 70,
-          "lineEnd": 80
+          "path": "C:\\2dept\\frontend\\.env.development",
+          "type": "TO_MODIFY",
+          "description": "개발 환경 설정값 정리"
         },
         {
-          "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
+          "path": "C:\\2dept\\frontend\\vite.config.ts",
           "type": "REFERENCE",
-          "description": "WebSocket 연결 로직 확인",
-          "lineStart": 100,
-          "lineEnd": 150
+          "description": "Vite 환경변수 설정 확인"
         },
         {
-          "path": "C:\\2dept\\logs",
+          "path": "C:\\2dept\\backend\\.env",
           "type": "REFERENCE",
-          "description": "연결 로그 확인",
-          "lineStart": 1,
-          "lineEnd": 100
+          "description": "백엔드 환경변수 설정 확인"
         }
       ],
-      "implementationGuide": "1. 백엔드 서버를 8001 포트로 시작\\n2. curl http://localhost:8001/health로 API 연결 확인\\n3. 프론트엔드 개발 서버 시작 후 WebSocket 연결 상태 확인\\n4. 브라우저 개발자 도구에서 WebSocket 연결 로그 확인\\n5. 테스트 로그 메시지 API(/api/logs/test) 호출하여 실시간 메시지 전송 테스트\\n6. ping/pong 메시지 교환 정상 여부 확인",
-      "verificationCriteria": "WebSocket 연결이 성공적으로 설정되고(connectionStatus: 'connected'), 실시간 메시지가 정상적으로 송수신되며, 브라우저에서 WebSocket 연결 상태가 'Connected'로 표시되어야 함",
-      "analysisResult": "2dept 프로젝트의 WebSocket 연결 문제(code 1006) 해결을 위한 포트 통일 및 환경 설정 최적화 작업입니다. 기존 WebSocket 인프라는 완전히 구현되어 있으므로 설정 파일만 수정하여 문제를 해결할 수 있습니다."
+      "implementationGuide": "1. 프론트엔드 .env 파일들 확인:\\n   - .env\\n   - .env.development\\n   - .env.example\\n2. 백엔드 .env 파일 확인\\n3. API URL, WebSocket URL 환경변수 통일\\n4. 개발/운영 환경별 설정 분리\\n5. vite.config.ts에서 환경변수 로딩 확인\\n6. 설정 문서화",
+      "verificationCriteria": "환경변수를 통한 설정 변경이 정상 동작하고, 개발/운영 환경 구분이 명확해야 함. 하드코딩된 URL이 제거되고 설정 파일로 관리되어야 함.",
+      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
     }
   ]
 }

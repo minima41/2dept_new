@@ -1,0 +1,62 @@
+{
+  "005930": {
+    "stock_code": "005930",
+    "stock_name": "삼성전자",
+    "target_price": 75000,
+    "stop_loss_price": 65000,
+    "monitoring_enabled": true,
+    "current_price": 66600.0,
+    "added_at": "2025-07-24T10:44:23.841007",
+    "last_updated": "2025-07-25T21:07:39.902317",
+    "price": 65900.0,
+    "change": -100.0,
+    "change_rate": -0.15151515151515152,
+    "volume": 8045068,
+    "updated_at": "2025-07-25T21:07:39.902317"
+  },
+  "000660": {
+    "stock_code": "000660",
+    "stock_name": "SK하이닉스",
+    "target_price": 140000,
+    "stop_loss_price": 120000,
+    "monitoring_enabled": true,
+    "current_price": 272750.0,
+    "added_at": "2025-07-24T10:44:25.991962",
+    "last_updated": "2025-07-25T21:07:39.946831",
+    "price": 266000.0,
+    "change": -3500.0,
+    "change_rate": -1.2987012987012987,
+    "volume": 2171063,
+    "updated_at": "2025-07-25T21:07:39.946831"
+  },
+  "035420": {
+    "stock_code": "035420",
+    "stock_name": "NAVER",
+    "target_price": 200000,
+    "stop_loss_price": 180000,
+    "monitoring_enabled": true,
+    "current_price": 228750.0,
+    "added_at": "2025-07-24T10:44:28.450950",
+    "last_updated": "2025-07-25T21:07:39.982831",
+    "price": 234500.0,
+    "change": 7500.0,
+    "change_rate": 3.303964757709251,
+    "volume": 1202489,
+    "updated_at": "2025-07-25T21:07:39.982831"
+  },
+  "066570": {
+    "stock_code": "066570",
+    "stock_name": "LG전자",
+    "target_price": 120000.0,
+    "stop_loss_price": 90000.0,
+    "monitoring_enabled": true,
+    "current_price": 77700.0,
+    "added_at": "2025-07-24T14:01:33.142632",
+    "last_updated": "2025-07-25T21:07:40.033353",
+    "price": 77100.0,
+    "change": -800.0,
+    "change_rate": -1.0269576379974326,
+    "volume": 431257,
+    "updated_at": "2025-07-25T21:07:40.033353"
+  }
+}

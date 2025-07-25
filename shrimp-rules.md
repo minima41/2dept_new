@@ -1,4 +1,253 @@
-# Development Guidelines for 2dept Investment Platform
+# 2dept 프로젝트 개발 가이드라인
+
+## 프로젝트 개요
+
+### 목적
+- **투자본부 모니터링 시스템**: DART 공시 및 주가 실시간 모니터링
+- **기술 스택**: FastAPI(백엔드) + React/TypeScript(프론트엔드) + MySQL
+- **서비스 URL**: http://localhost (C:\2dept 루트)
+
+### 핵심 기능
+- DART 공시 자동 모니터링 및 이메일 알림
+- 주가 실시간 업데이트 및 목표가/손절가 알림
+- WebSocket 실시간 통신
+- 웹 기반 대시보드
+
+## 프로젝트 아키텍처
+
+### 디렉토리 구조
+```
+C:\2dept/
+├── backend/app/          # FastAPI 백엔드
+│   ├── main.py          # 메인 애플리케이션
+│   ├── config.py        # 설정 관리
+│   ├── modules/         # 기능별 모듈
+│   │   ├── dart/        # DART 공시 모니터링
+│   │   └── stocks/      # 주가 모니터링
+│   ├── shared/          # 공통 기능
+│   │   ├── websocket.py # WebSocket 관리
+│   │   └── database.py  # DB 연결
+│   └── utils/           # 유틸리티
+├── frontend/            # React 프론트엔드
+├── logs/                # 로그 파일 저장소
+├── dart_monitor.py      # 원본 DART 스크립트
+└── simple_stock_manager_integrated.py  # 원본 주가 스크립트
+```
+
+### 모듈 구조 패턴
+각 modules 하위 폴더는 다음 구조를 따름:
+- `models.py`: 데이터 모델 정의
+- `service.py`: 비즈니스 로직
+- `router.py`: API 엔드포인트
+- `monitor.py`: 백그라운드 모니터링
+
+## 코드 수정 규칙
+
+### **🚨 필수 준수사항**
+
+#### 파일 수정 전 확인사항
+- **반드시 `dryRun: true`로 미리보기 확인 후 적용**
+- **라인 번호 재확인**: 파일 수정 후 라인 번호 변경됨
+- **관련 파일 동시 수정 필요성 검토**
+
+#### 백엔드 코드 수정 시
+- **WebSocket 관련**: `shared/websocket.py`와 `main.py` 동시 고려
+- **설정 변경**: `.env`와 `config.py` 동기화 필수
+- **모듈 수정**: `models.py`, `service.py`, `router.py` 일관성 유지
+- **데이터베이스**: 스키마 변경 시 migration 스크립트 작성
+
+### 금지사항 (🚫 절대 사용 금지)
+- **GUI 코드**: `messagebox`, `tkinter`, `pystray` 등
+- **동기화 없는 수정**: 관련 파일 확인 없이 단독 수정
+- **서버 실행 중 핵심 파일 수정**: 서버 재시작 필요
+
+## 기능 구현 표준
+
+### WebSocket 통신
+#### 구현 위치
+- **서버**: `backend/app/shared/websocket.py`
+- **클라이언트**: `frontend/src/` (React hooks)
+
+#### 이벤트 타입
+```python
+class WebSocketEventType(str, Enum):
+    DART_UPDATE = "dart_update"
+    STOCK_UPDATE = "stock_update"
+    ALERT_TRIGGERED = "alert_triggered"
+    SYSTEM_STATUS = "system_status"
+```
+
+#### 수정 시 주의사항
+- WebSocket 연결 실패 시 `main.py`의 라우트 확인
+- 포트 8001 사용, 프론트엔드와 일치 필요
+- CORS 설정 확인
+
+### DART 공시 모니터링
+#### 구현 위치
+- **모듈**: `backend/app/modules/dart/`
+- **원본 참조**: `dart_monitor.py`
+
+#### 핵심 기능
+- OpenDART API 주기적 호출
+- 키워드 필터링 (`KEYWORDS`, `EXCLUDE_KEYWORDS`)
+- 중복 방지 (`processed_ids.txt`)
+- 이메일 알림 발송
+
+### 주가 모니터링
+#### 구현 위치
+- **모듈**: `backend/app/modules/stocks/`
+- **원본 참조**: `simple_stock_manager_integrated.py`
+
+#### 핵심 기능
+- 실시간 주가 업데이트 (09:00-15:35)
+- 목표가/손절가 알림
+- 일간 급등/급락 감지
+- 일일 요약 리포트 이메일
+
+## 환경 설정 관리
+
+### 설정 파일 우선순위
+1. **환경변수** (시스템/사용자)
+2. **`.env` 파일** (backend, frontend 각각)
+3. **`config.py`** (기본값)
+
+### 필수 환경변수
+```bash
+# MySQL 연결
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=database_name
+
+# DART API
+DART_API_KEY=your_api_key
+
+# 이메일 설정
+EMAIL_SENDER=sender@gmail.com
+EMAIL_PASSWORD=app_password
+EMAIL_RECEIVER=receiver@gmail.com
+```
+
+### MySQL 연결 테스트
+```bash
+mysql -u root -e "SHOW DATABASES;"
+```
+
+## 로깅 및 디버깅
+
+### 로그 파일 위치
+- **메인 로그**: `C:\2dept\logs\`
+- **백엔드**: `backend/app/logs/`
+- **개별 모듈**: 각 모듈별 로그 파일
+
+### 로깅 규칙
+- **ERROR 레벨**: 시스템 오류, 연결 실패
+- **WARNING 레벨**: 데이터 이상, 임계값 초과
+- **INFO 레벨**: 정상 작업, 상태 변경
+- **DEBUG 레벨**: 상세 디버그 정보
+
+### 디버깅 절차
+1. **로그 확인**: `C:\2dept\logs\` 폴더 검토
+2. **서버 상태**: 백엔드 서버 실행 확인
+3. **WebSocket 연결**: 브라우저 개발자 도구 확인
+4. **데이터베이스**: MySQL 연결 및 테이블 상태 확인
+
+## Git 워크플로우
+
+### 커밋 규칙
+```bash
+# 기능 추가
+git commit -m "feat: DART 공시 필터링 기능 추가"
+
+# 버그 수정
+git commit -m "fix: WebSocket 연결 오류 수정"
+
+# 코드 개선
+git commit -m "refactor: 주가 모니터링 로직 최적화"
+
+# 설정 변경
+git commit -m "chore: 환경 설정 업데이트"
+```
+
+### 브랜치 전략
+1. **개발**: `test` 브랜치에서 작업
+2. **테스트**: 충분한 검증 후
+3. **병합**: `main` 브랜치로 PR
+
+### GitHub 연동
+- **저장소**: https://github.com/minima41/dash
+- **인증**: Personal Access Token 사용
+- **CLI**: `gh` 명령어 활용
+
+## 테스트 및 검증
+
+### 백엔드 테스트
+```bash
+# 서버 실행
+python backend/app/main.py
+
+# API 테스트
+curl http://localhost:8001/health
+
+# WebSocket 테스트
+# 브라우저에서 ws://localhost:8001/ws 연결 확인
+```
+
+### 기능별 테스트
+1. **DART 모니터링**: 공시 조회 및 알림 발송
+2. **주가 모니터링**: 실시간 업데이트 및 알림
+3. **WebSocket**: 실시간 데이터 전송
+4. **이메일 알림**: SMTP 발송 확인
+
+## AI 에이전트 결정 기준
+
+### 우선순위 판단
+1. **보안/안정성**: 시스템 안정성 최우선
+2. **기능 완결성**: 기존 기능 보존 필수
+3. **성능**: 실시간 모니터링 성능 유지
+4. **사용자 경험**: WebSocket 연결 안정성
+
+### 문제 상황 대응
+#### WebSocket 연결 실패
+1. **서버 라우트 확인**: `main.py`의 `/ws` 엔드포인트
+2. **포트 충돌 검사**: 8001번 포트 사용 상태
+3. **CORS 설정**: 프론트엔드 도메인 허용 여부
+4. **방화벽**: Windows 방화벽 규칙 확인
+
+#### 기능 이식 실패
+1. **원본 코드 분석**: `dart_monitor.py`, `simple_stock_manager_integrated.py`
+2. **의존성 확인**: `requirements.txt` 라이브러리
+3. **환경 설정**: `.env` 파일 및 API 키
+4. **데이터베이스**: 테이블 스키마 및 데이터
+
+### 응급 상황 처리
+- **서버 다운**: 즉시 로그 확인 후 재시작
+- **데이터 손실**: 백업에서 복원
+- **연결 실패**: 네트워크 및 인증 정보 재확인
+
+## 프로젝트별 특수 규칙
+
+### Windows 환경 고려사항
+- **파일 경로**: 백슬래시 사용 (`C:\2dept`)
+- **권한**: 관리자 권한 필요 시 명시
+- **서비스**: Windows 서비스 형태 실행 고려
+- **스케줄러**: cron 대신 Windows 작업 스케줄러
+
+### 원본 스크립트 참조 규칙
+- **기능 이식 시**: 원본 로직 완전 분석 후 적용
+- **설정 이전**: config 파일의 모든 상수값 확인
+- **GUI 제거**: 모든 Tkinter, messagebox 코드 제거
+- **로깅 통합**: 기존 로깅 시스템과 일치
+
+### 성능 최적화
+- **메모리**: 대용량 데이터 처리 시 청크 단위
+- **네트워크**: API 호출 간격 조절
+- **데이터베이스**: 인덱스 및 쿼리 최적화
+- **WebSocket**: 연결 수 제한 및 cleanup
+
+---
+
+**⚠️ 주의사항**: 이 문서는 AI Agent 전용이며, 모든 규칙은 시스템 안정성과 기능 완결성을 보장하기 위해 수립됨.
 
 ## Project Overview
 

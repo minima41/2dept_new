@@ -1,0 +1,64 @@
+# V2 Investment Monitor - Docker Compose
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  backend:
+    build: .
+    container_name: investment-monitor-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_URL=sqlite:///./data/investment_monitor.db
+      - DEBUG=true
+      - DART_API_KEY=d63d0566355b527123f1d14cf438c84041534b2b
+      - EMAIL_SENDER=dlwlrma401@gmail.com
+      - EMAIL_PASSWORD=byvu_dkyn_qfyz_lwji
+      - EMAIL_RECEIVER=ljm@inveski.com
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - investment-monitor
+
+  # Redis (선택적 - 캐싱용)
+  redis:
+    image: redis:7-alpine
+    container_name: investment-monitor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - investment-monitor
+
+  # PostgreSQL (프로덕션용 - 선택적)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: investment-monitor-postgres
+  #   environment:
+  #     POSTGRES_DB: investment_monitor
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   restart: unless-stopped
+  #   networks:
+  #     - investment-monitor
+
+volumes:
+  redis_data:
+  # postgres_data:
+
+networks:
+  investment-monitor:
+    driver: bridge
