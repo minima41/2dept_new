@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 연결 테스트</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .disconnected { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .connecting { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+            margin: 10px 0;
+        }
+        .message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 4px solid #007bff;
+        }
+        .message .timestamp {
+            font-size: 12px;
+            color: #666;
+            float: right;
+        }
+        .message .type {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .test-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket 연결 테스트</h1>
+        
+        <div id="status" class="status disconnected">
+            연결 상태: 연결 안됨
+        </div>
+        
+        <div>
+            <button id="connectBtn" onclick="connect()">연결</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>연결 끊기</button>
+            <button onclick="clearMessages()">메시지 지우기</button>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message">
+                <div class="timestamp">시작</div>
+                <div class="type">SYSTEM</div>
+                <div>WebSocket 테스트를 시작합니다...</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>연결 정보</h3>
+            <p><strong>WebSocket URL:</strong> <span id="wsUrl">ws://localhost:8001/ws</span></p>
+            <p><strong>연결 시도 횟수:</strong> <span id="attemptCount">0</span></p>
+            <p><strong>수신 메시지 수:</strong> <span id="messageCount">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let attemptCount = 0;
+        let messageCount = 0;
+        let reconnectTimer = null;
+
+        function updateStatus(status, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = status;
+            statusDiv.className = `status ${className}`;
+        }
+
+        function addMessage(type, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div class="type">${type}</div>
+                <div>${content}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            if (type !== 'SYSTEM') {
+                messageCount++;
+                document.getElementById('messageCount').textContent = messageCount;
+            }
+        }
+
+        function connect() {
+            if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+                addMessage('SYSTEM', '이미 연결되어 있거나 연결 시도 중입니다.');
+                return;
+            }
+
+            attemptCount++;
+            document.getElementById('attemptCount').textContent = attemptCount;
+            
+            updateStatus('연결 시도 중...', 'connecting');
+            addMessage('SYSTEM', `WebSocket 연결 시도 중... (${attemptCount}번째)`);
+            
+            const wsUrl = 'ws://localhost:8001/ws';
+            document.getElementById('wsUrl').textContent = wsUrl;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    updateStatus('연결됨', 'connected');
+                    addMessage('SYSTEM', 'WebSocket 연결 성공!');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    
+                    // 연결 성공 시 재연결 타이머 제거
+                    if (reconnectTimer) {
+                        clearTimeout(reconnectTimer);
+                        reconnectTimer = null;
+                    }
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        addMessage(data.type || 'MESSAGE', JSON.stringify(data, null, 2));
+                    } catch (e) {
+                        addMessage('RAW', event.data);
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    updateStatus('연결 끊김', 'disconnected');
+                    addMessage('SYSTEM', `연결이 끊어졌습니다. 코드: ${event.code}, 이유: ${event.reason || '알 수 없음'}`);
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    
+                    // 자동 재연결 시도 (5초 후)
+                    if (event.code !== 1000) { // 정상 종료가 아닌 경우
+                        addMessage('SYSTEM', '5초 후 자동 재연결을 시도합니다...');
+                        reconnectTimer = setTimeout(connect, 5000);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    addMessage('ERROR', 'WebSocket 오류 발생: ' + error.toString());
+                    updateStatus('연결 오류', 'disconnected');
+                };
+                
+            } catch (error) {
+                addMessage('ERROR', 'WebSocket 생성 실패: ' + error.message);
+                updateStatus('연결 실패', 'disconnected');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        function disconnect() {
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            
+            if (ws) {
+                ws.close(1000, '사용자가 연결을 종료했습니다.');
+                ws = null;
+            }
+            
+            updateStatus('연결 안됨', 'disconnected');
+            addMessage('SYSTEM', '연결을 종료했습니다.');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+            document.getElementById('messageCount').textContent = messageCount;
+            addMessage('SYSTEM', '메시지를 모두 지웠습니다.');
+        }
+
+        // 페이지 로드 시 자동 연결 시도
+        window.onload = function() {
+            addMessage('SYSTEM', '페이지 로드 완료. 자동 연결을 시도합니다...');
+            setTimeout(connect, 1000);
+        };
+
+        // 페이지 언로드 시 연결 종료
+        window.onbeforeunload = function() {
+            if (ws) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>
