@@ -1,153 +1,301 @@
 {
   "tasks": [
     {
-      "id": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc",
-      "name": "프론트엔드 API 클라이언트 포트 설정 수정",
-      "description": "apiClient.ts 파일의 API_BASE_URL을 잘못된 포트 8892에서 정상 포트 8000으로 변경하여 백엔드와의 연결을 복구합니다. 동시에 환경변수 설정을 정규화하고 하드코딩된 URL을 정리합니다.",
-      "notes": "백엔드 서버가 포트 8000에서 정상 동작 중이므로 즉시 연결 가능해집니다. 환경변수 설정도 함께 정리하여 향후 포트 변경 시 유연하게 대응할 수 있도록 합니다.",
+      "id": "dfad8a10-0051-4a3b-af6e-71a67e5e68a6",
+      "name": "시스템 사전 준비 및 환경 검증",
+      "description": "테스트 시작 전 전체 시스템 환경을 점검하고 안전한 테스트 환경을 구성합니다. 현재 상태를 백업하고 필수 의존성을 확인하여 테스트 진행을 위한 기반을 마련합니다.",
+      "notes": "모든 테스트의 기반이 되는 작업으로 신중하게 진행",
       "status": "in_progress",
       "dependencies": [],
-      "createdAt": "2025-07-25T13:46:59.392Z",
-      "updatedAt": "2025-07-25T13:47:11.247Z",
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:58:00.652Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\frontend\\src\\services\\apiClient.ts",
-          "type": "TO_MODIFY",
-          "description": "API 베이스 URL 포트 변경 및 환경변수 설정 정규화",
-          "lineStart": 3,
-          "lineEnd": 6
+          "path": "v2/backend/requirements.txt",
+          "type": "REFERENCE",
+          "description": "Python 의존성 목록"
+        },
+        {
+          "path": "v2/frontend/package.json",
+          "type": "REFERENCE",
+          "description": "Node.js 의존성 목록"
+        },
+        {
+          "path": "v2/backend/.env.example",
+          "type": "REFERENCE",
+          "description": "환경변수 템플릿"
+        },
+        {
+          "path": ".gitignore",
+          "type": "REFERENCE",
+          "description": "Git 무시 파일 목록"
         }
       ],
-      "implementationGuide": "1. apiClient.ts 파일 열기\\n2. API_BASE_URL 상수를 'http://localhost:8000'으로 변경\\n3. 환경변수 주석 처리된 부분 활성화 검토\\n4. 포트 8892 관련 모든 참조 제거\\n5. 개발/운영 환경 구분 로직 점검",
-      "verificationCriteria": "수정 후 브라우저에서 API 호출이 성공하고 실제 백엔드 데이터가 반환되는지 확인. curl 명령어로 엔드포인트 테스트 가능해야 함.",
-      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
+      "implementationGuide": "1. Git 현재 상태 커밋 및 백업\\n2. 데이터베이스 파일 백업 생성\\n3. Python 가상환경 및 의존성 확인\\n4. Node.js 환경 및 패키지 설치 상태 확인\\n5. 환경변수 및 설정파일 검증\\n6. 포트 가용성 확인 (8000, 3000)",
+      "verificationCriteria": "1. Git 상태가 clean하고 백업 커밋 완료\\n2. Python 가상환경 활성화 및 모든 패키지 설치 완료\\n3. Node.js 의존성 설치 완료 (npm install 성공)\\n4. 필수 환경변수 설정 확인\\n5. 포트 8000, 3000 사용 가능 확인\\n6. 데이터베이스 파일 백업 생성 완료",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
     },
     {
-      "id": "d374bdef-5307-4b93-8f2b-a81df7b3d2b5",
-      "name": "백엔드 API 엔드포인트 연결 검증",
-      "description": "프론트엔드에서 사용하는 주요 API 엔드포인트들이 정상적으로 호출되고 실제 데이터를 반환하는지 테스트합니다. DART 공시 데이터, 주가 모니터링 데이터, 설정 등의 API 응답을 확인합니다.",
-      "notes": "백엔드가 이미 실제 데이터를 반환하고 있으므로 API 연결만 복구되면 즉시 정상 동작할 것입니다. 각 엔드포인트별로 데이터 형식과 내용을 확인하여 프론트엔드 컴포넌트에서 올바르게 파싱되는지 점검합니다.",
+      "id": "3abbb4ef-4509-414f-ba83-57e6b471b0ef",
+      "name": "백엔드 인프라 및 데이터베이스 테스트",
+      "description": "FastAPI 서버의 기본 동작과 데이터베이스 연결을 테스트합니다. 서버 시작, 헬스체크, 데이터베이스 초기화 등 핵심 인프라의 정상 동작을 확인합니다.",
+      "notes": "서버가 정상 시작되지 않으면 이후 모든 테스트가 불가능하므로 철저히 검증",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc"
+          "taskId": "dfad8a10-0051-4a3b-af6e-71a67e5e68a6"
         }
       ],
-      "createdAt": "2025-07-25T13:46:59.392Z",
-      "updatedAt": "2025-07-25T13:46:59.392Z",
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\backend\\app\\main.py",
+          "path": "v2/backend/app/main.py",
+          "type": "TO_MODIFY",
+          "description": "FastAPI 메인 애플리케이션",
+          "lineStart": 1,
+          "lineEnd": 50
+        },
+        {
+          "path": "v2/backend/app/core/database.py",
+          "type": "TO_MODIFY",
+          "description": "데이터베이스 설정"
+        },
+        {
+          "path": "v2/backend/app/core/config.py",
+          "type": "TO_MODIFY",
+          "description": "애플리케이션 설정"
+        },
+        {
+          "path": "v2/backend/logs",
           "type": "REFERENCE",
-          "description": "백엔드 API 엔드포인트 라우팅 확인",
+          "description": "로그 파일 디렉토리"
+        }
+      ],
+      "implementationGuide": "1. FastAPI 서버 시작 테스트\\n2. 헬스체크 엔드포인트 확인\\n3. 데이터베이스 연결 및 초기화 테스트\\n4. 로그 시스템 동작 확인\\n5. 기본 API 라우터 등록 상태 확인\\n6. CORS 설정 검증",
+      "verificationCriteria": "1. FastAPI 서버가 포트 8000에서 정상 시작\\n2. GET /health 엔드포인트 200 응답\\n3. 데이터베이스 파일 생성 및 연결 성공\\n4. 로그 파일이 정상적으로 생성\\n5. API 문서 페이지 (/docs) 접근 가능\\n6. CORS 정책이 올바르게 적용",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
+    },
+    {
+      "id": "a40ce253-653a-4b1c-a92a-6b2d0c9d5449",
+      "name": "백엔드 핵심 서비스 및 API 테스트",
+      "description": "DART 서비스, 주식 서비스, WebSocket 서비스 등 핵심 비즈니스 로직의 동작을 테스트합니다. 각 서비스의 초기화, API 엔드포인트 응답, 기본 기능을 검증합니다.",
+      "notes": "외부 API 호출 시 실제 요청 제한을 고려하여 모킹 또는 제한된 테스트 진행",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "3abbb4ef-4509-414f-ba83-57e6b471b0ef"
+        }
+      ],
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
+      "relatedFiles": [
+        {
+          "path": "v2/backend/app/services",
+          "type": "TO_MODIFY",
+          "description": "서비스 레이어 전체 디렉토리"
+        },
+        {
+          "path": "v2/backend/app/routers",
+          "type": "TO_MODIFY",
+          "description": "API 라우터 디렉토리"
+        },
+        {
+          "path": "v2/backend/app/models",
+          "type": "REFERENCE",
+          "description": "데이터 모델 정의"
+        }
+      ],
+      "implementationGuide": "1. dart_service 초기화 및 기본 동작 테스트\\n2. stock_service 초기화 및 PyKrx 연동 확인\\n3. WebSocket 서비스 초기화 및 연결 테스트\\n4. API 라우터별 엔드포인트 응답 확인\\n5. 에러 핸들링 및 로깅 동작 검증\\n6. 서비스 간 의존성 확인",
+      "verificationCriteria": "1. 모든 서비스가 오류 없이 초기화\\n2. DART API 엔드포인트들이 적절한 응답 반환\\n3. Stock API 엔드포인트들이 정상 동작\\n4. WebSocket 엔드포인트 연결 성공\\n5. 에러 상황에서 적절한 HTTP 상태코드 반환\\n6. 모든 API 호출이 로그에 기록",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
+    },
+    {
+      "id": "d2c672ce-faa9-439c-a104-0a7f15887021",
+      "name": "프론트엔드 빌드 및 기본 동작 테스트",
+      "description": "React 애플리케이션의 빌드, 기본 라우팅, 컴포넌트 렌더링을 테스트합니다. TypeScript 컴파일, TailwindCSS 스타일링, 기본 페이지 접근성을 확인합니다.",
+      "notes": "UI 완성도보다는 기본 구조와 동작에 집중",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "dfad8a10-0051-4a3b-af6e-71a67e5e68a6"
+        }
+      ],
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
+      "relatedFiles": [
+        {
+          "path": "v2/frontend/src/App.tsx",
+          "type": "TO_MODIFY",
+          "description": "메인 애플리케이션 컴포넌트"
+        },
+        {
+          "path": "v2/frontend/src/pages",
+          "type": "TO_MODIFY",
+          "description": "페이지 컴포넌트들"
+        },
+        {
+          "path": "v2/frontend/src/components",
+          "type": "TO_MODIFY",
+          "description": "UI 컴포넌트들"
+        },
+        {
+          "path": "v2/frontend/tsconfig.json",
+          "type": "REFERENCE",
+          "description": "TypeScript 설정"
+        }
+      ],
+      "implementationGuide": "1. TypeScript 컴파일 오류 확인 및 수정\\n2. React 애플리케이션 개발 서버 시작\\n3. 기본 라우팅 테스트 (/, /dashboard, /dart, /stocks)\\n4. 각 페이지 컴포넌트 렌더링 확인\\n5. TailwindCSS 스타일 적용 확인\\n6. 브라우저 콘솔 오류 점검",
+      "verificationCriteria": "1. TypeScript 컴파일 오류 없음\\n2. npm run dev로 개발 서버 정상 시작\\n3. 모든 라우트 페이지 접근 가능\\n4. 각 페이지가 기본 레이아웃으로 렌더링\\n5. TailwindCSS 스타일이 정상 적용\\n6. 브라우저 콘솔에 치명적 오류 없음",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
+    },
+    {
+      "id": "4c8f20de-dc14-4a78-87ef-1e7050e3e643",
+      "name": "프론트엔드-백엔드 API 통신 테스트",
+      "description": "프론트엔드에서 백엔드 API로의 HTTP 통신을 테스트합니다. API 클라이언트, React Query 연동, 에러 처리, 로딩 상태 관리를 검증합니다.",
+      "notes": "실제 API 호출이므로 백엔드 서버가 실행 중이어야 함",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "a40ce253-653a-4b1c-a92a-6b2d0c9d5449"
+        },
+        {
+          "taskId": "d2c672ce-faa9-439c-a104-0a7f15887021"
+        }
+      ],
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
+      "relatedFiles": [
+        {
+          "path": "v2/frontend/src/services/apiClient.ts",
+          "type": "TO_MODIFY",
+          "description": "API 클라이언트 설정"
+        },
+        {
+          "path": "v2/frontend/src/hooks",
+          "type": "TO_MODIFY",
+          "description": "커스텀 훅들"
+        },
+        {
+          "path": "v2/frontend/src/stores",
+          "type": "TO_MODIFY",
+          "description": "상태 관리 스토어"
+        }
+      ],
+      "implementationGuide": "1. API 클라이언트 설정 확인\\n2. React Query 연동 상태 테스트\\n3. 각 페이지에서 API 호출 테스트\\n4. 성공/실패 응답 처리 확인\\n5. 로딩 상태 및 에러 메시지 표시 검증\\n6. 네트워크 요청 모니터링",
+      "verificationCriteria": "1. API 클라이언트가 백엔드와 정상 통신\\n2. React Query가 데이터 페칭 및 캐싱 정상 동작\\n3. 모든 페이지에서 필요한 데이터 로드 성공\\n4. API 오류 시 적절한 에러 메시지 표시\\n5. 로딩 스피너나 스켈레톤 UI 정상 동작\\n6. 브라우저 Network 탭에서 올바른 요청 확인",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
+    },
+    {
+      "id": "556d3d08-5494-4b8d-869d-623cd6b784c5",
+      "name": "WebSocket 실시간 통신 검증",
+      "description": "백엔드와 프론트엔드 간 WebSocket 연결과 실시간 메시지 교환을 테스트합니다. 연결 안정성, 메시지 형식, 자동 재연결 등을 검증합니다.",
+      "notes": "실시간 통신의 핵심 기능이므로 다양한 시나리오로 철저히 테스트",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "4c8f20de-dc14-4a78-87ef-1e7050e3e643"
+        }
+      ],
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
+      "relatedFiles": [
+        {
+          "path": "v2/frontend/src/hooks/useWebSocket.ts",
+          "type": "TO_MODIFY",
+          "description": "WebSocket 커스텀 훅"
+        },
+        {
+          "path": "v2/backend/app/services/websocket_service.py",
+          "type": "TO_MODIFY",
+          "description": "WebSocket 서비스"
+        },
+        {
+          "path": "v2/backend/app/main.py",
+          "type": "REFERENCE",
+          "description": "WebSocket 엔드포인트",
           "lineStart": 100,
-          "lineEnd": 120
-        },
-        {
-          "path": "C:\\2dept\\backend\\app\\data\\monitoring_stocks.json",
-          "type": "REFERENCE",
-          "description": "실제 주가 모니터링 데이터 확인"
+          "lineEnd": 200
         }
       ],
-      "implementationGuide": "1. 브라우저 개발자 도구 Network 탭 열기\\n2. 주요 API 엔드포인트 직접 호출 테스트:\\n   - /api/stocks/monitoring (주가 데이터)\\n   - /api/dart/disclosures (공시 데이터)\\n   - /api/dart/keywords (키워드 설정)\\n   - /health (헬스체크)\\n3. 응답 데이터 구조 및 내용 검증\\n4. 에러 응답 처리 로직 확인",
-      "verificationCriteria": "모든 주요 API 엔드포인트가 정상 응답하고 실제 데이터를 반환해야 함. CORS 에러나 네트워크 오류가 발생하지 않아야 함.",
-      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
+      "implementationGuide": "1. WebSocket 연결 설정 및 초기 연결 테스트\\n2. 클라이언트-서버 간 메시지 송수신 확인\\n3. 메시지 형식 검증 (type, data 구조)\\n4. 연결 끊김 및 재연결 시나리오 테스트\\n5. 다중 클라이언트 연결 테스트\\n6. 브로드캐스트 메시지 전파 확인",
+      "verificationCriteria": "1. WebSocket 연결이 ws://localhost:8000/ws에 성공\\n2. 초기 연결 시 welcome 메시지 수신\\n3. ping-pong 메시지 교환 정상 동작\\n4. 서버에서 클라이언트로 브로드캐스트 메시지 전달\\n5. 연결 끊김 시 자동 재연결 시도\\n6. 다중 브라우저 탭에서 동시 연결 가능",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
     },
     {
-      "id": "256b0c2d-2346-4bd9-b6b0-9072520d2f34",
-      "name": "프론트엔드 컴포넌트의 실제 데이터 렌더링 확인",
-      "description": "주가 모니터링 페이지, DART 공시 페이지 등 주요 컴포넌트에서 샘플 데이터 대신 백엔드에서 받은 실제 데이터가 올바르게 표시되는지 확인하고 필요시 데이터 파싱 로직을 수정합니다.",
-      "notes": "백엔드 API 연결이 복구되면 React Query를 통해 자동으로 실제 데이터가 로드될 것입니다. 하드코딩된 샘플 데이터가 있다면 제거하고 API 응답 데이터만 사용하도록 수정합니다.",
+      "id": "e0f0ecf1-7d76-4391-bfb0-5eac3232a258",
+      "name": "백그라운드 작업 및 비즈니스 로직 검증",
+      "description": "DART 모니터링과 주식 가격 추적의 백그라운드 작업을 테스트합니다. 실제 외부 API 연동 없이 모킹을 통해 비즈니스 로직의 정상 동작을 확인합니다.",
+      "notes": "실제 외부 API 호출 대신 모킹을 사용하여 제한사항 회피",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "d374bdef-5307-4b93-8f2b-a81df7b3d2b5"
+          "taskId": "556d3d08-5494-4b8d-869d-623cd6b784c5"
         }
       ],
-      "createdAt": "2025-07-25T13:46:59.392Z",
-      "updatedAt": "2025-07-25T13:46:59.392Z",
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\frontend\\src\\pages\\StocksPage.tsx",
+          "path": "v2/backend/app/services/dart_service.py",
           "type": "TO_MODIFY",
-          "description": "주가 데이터 렌더링 로직 확인 및 샘플 데이터 제거"
+          "description": "DART 서비스 로직"
         },
         {
-          "path": "C:\\2dept\\frontend\\src\\pages\\DartPage.tsx",
+          "path": "v2/backend/app/services/stock_service.py",
           "type": "TO_MODIFY",
-          "description": "DART 공시 데이터 렌더링 로직 확인"
+          "description": "주식 서비스 로직"
+        },
+        {
+          "path": "v2/backend/app/main.py",
+          "type": "REFERENCE",
+          "description": "백그라운드 작업 정의",
+          "lineStart": 200,
+          "lineEnd": 300
         }
       ],
-      "implementationGuide": "1. 주가 모니터링 페이지 (StocksPage) 접속\\n2. 실제 주가 데이터 표시 여부 확인:\\n   - 삼성전자, SK하이닉스, NAVER, LG전자 실시간 가격\\n   - 변동률, 거래량 정보\\n   - 목표가/손절가 설정값\\n3. DART 공시 페이지에서 실제 공시 데이터 확인\\n4. 샘플 데이터 하드코딩 부분 제거\\n5. 로딩 상태 및 에러 처리 개선",
-      "verificationCriteria": "프론트엔드 페이지에서 실제 백엔드 데이터가 정상 표시되고 샘플 데이터나 하드코딩된 값이 나타나지 않아야 함. 실시간 가격 업데이트가 정상 동작해야 함.",
-      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
+      "implementationGuide": "1. 백그라운드 작업 스케줄링 확인\\n2. DART 모니터링 로직 모킹 테스트\\n3. 주식 가격 업데이트 로직 모킹 테스트\\n4. 알림 시스템 동작 확인\\n5. 시장 시간 체크 로직 검증\\n6. 작업 실행 로그 및 상태 모니터링",
+      "verificationCriteria": "1. 백그라운드 작업이 설정된 간격으로 실행\\n2. DART 서비스 모킹 시 예상 데이터 생성\\n3. 주식 서비스 모킹 시 가격 업데이트 시뮬레이션\\n4. 새 데이터 발생 시 WebSocket으로 알림 전송\\n5. 시장 운영 시간 로직이 올바르게 동작\\n6. 모든 작업 실행이 로그에 기록",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
     },
     {
-      "id": "16727f61-91d0-4be2-8a1a-15a42cfafc35",
-      "name": "WebSocket 실시간 통신 연결 및 이벤트 수신 확인",
-      "description": "WebSocket 연결이 정상적으로 이루어지고 실시간 주가 업데이트, DART 알림 등의 이벤트가 올바르게 수신되어 UI에 반영되는지 확인합니다. useWebSocket 훅의 동작을 점검하고 연결 문제를 해결합니다.",
-      "notes": "WebSocket은 이미 올바른 포트(8000)로 설정되어 있어 정상 동작할 것으로 예상됩니다. 연결 상태를 확인하고 실시간 데이터 수신이 UI에 반영되는지 점검합니다.",
+      "id": "4b406c2f-ed06-4d9e-aaab-f936be60fbc0",
+      "name": "오류 수정 및 코드 품질 개선",
+      "description": "발견된 모든 오류를 수정하고 코드 품질을 개선합니다. TypeScript 타입 오류, Python import 문제, 성능 최적화, 보안 강화 등을 포함합니다.",
+      "notes": "시스템 안정성에 직접적 영향을 주는 오류를 최우선 수정",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "2fd3c9ed-f20e-435f-8533-dfbe7c94c6fc"
+          "taskId": "e0f0ecf1-7d76-4391-bfb0-5eac3232a258"
         }
       ],
-      "createdAt": "2025-07-25T13:46:59.392Z",
-      "updatedAt": "2025-07-25T13:46:59.392Z",
+      "createdAt": "2025-07-25T19:50:49.690Z",
+      "updatedAt": "2025-07-25T19:50:49.690Z",
       "relatedFiles": [
         {
-          "path": "C:\\2dept\\frontend\\src\\hooks\\useWebSocket.ts",
-          "type": "REFERENCE",
-          "description": "WebSocket 연결 로직 및 이벤트 처리 확인",
-          "lineStart": 8,
-          "lineEnd": 15
-        },
-        {
-          "path": "C:\\2dept\\backend\\app\\main.py",
-          "type": "REFERENCE",
-          "description": "백엔드 WebSocket 엔드포인트 확인",
-          "lineStart": 85,
-          "lineEnd": 95
-        }
-      ],
-      "implementationGuide": "1. useWebSocket 훅에서 WS_URL 포트 확인 (현재 8000으로 설정됨)\\n2. 브라우저 개발자 도구 Network 탭에서 WebSocket 연결 상태 모니터링\\n3. WebSocket 메시지 송수신 로그 확인\\n4. 실시간 이벤트 수신 테스트:\\n   - stock_update 이벤트\\n   - dart_update 이벤트\\n   - system_status 이벤트\\n5. 연결 끊김 시 자동 재연결 로직 테스트",
-      "verificationCriteria": "WebSocket 연결이 성공하고 실시간 데이터 업데이트가 프론트엔드 UI에 즉시 반영되어야 함. 연결 끊김 시 자동 재연결이 동작해야 함.",
-      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
-    },
-    {
-      "id": "3dd5de97-a8de-47c3-9662-831dd988500a",
-      "name": "환경변수 및 설정 파일 통합 정리",
-      "description": "프론트엔드와 백엔드의 환경변수 설정을 정리하여 향후 포트 변경이나 환경 전환 시 일관성을 유지할 수 있도록 개선합니다. .env 파일들을 점검하고 설정값을 통일합니다.",
-      "notes": "현재 하드코딩된 URL들을 환경변수로 관리하여 환경별 설정 변경을 용이하게 만듭니다. 개발 환경에서는 localhost, 운영 환경에서는 실제 서버 주소로 쉽게 전환할 수 있도록 설정합니다.",
-      "status": "pending",
-      "dependencies": [
-        {
-          "taskId": "256b0c2d-2346-4bd9-b6b0-9072520d2f34"
-        }
-      ],
-      "createdAt": "2025-07-25T13:46:59.392Z",
-      "updatedAt": "2025-07-25T13:46:59.392Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\2dept\\frontend\\.env.development",
+          "path": "v2/backend/app",
           "type": "TO_MODIFY",
-          "description": "개발 환경 설정값 정리"
+          "description": "백엔드 전체 코드베이스"
         },
         {
-          "path": "C:\\2dept\\frontend\\vite.config.ts",
-          "type": "REFERENCE",
-          "description": "Vite 환경변수 설정 확인"
+          "path": "v2/frontend/src",
+          "type": "TO_MODIFY",
+          "description": "프론트엔드 전체 코드베이스"
         },
         {
-          "path": "C:\\2dept\\backend\\.env",
-          "type": "REFERENCE",
-          "description": "백엔드 환경변수 설정 확인"
+          "path": "v2/backend/requirements.txt",
+          "type": "TO_MODIFY",
+          "description": "Python 의존성"
+        },
+        {
+          "path": "v2/frontend/package.json",
+          "type": "TO_MODIFY",
+          "description": "Node.js 의존성"
         }
       ],
-      "implementationGuide": "1. 프론트엔드 .env 파일들 확인:\\n   - .env\\n   - .env.development\\n   - .env.example\\n2. 백엔드 .env 파일 확인\\n3. API URL, WebSocket URL 환경변수 통일\\n4. 개발/운영 환경별 설정 분리\\n5. vite.config.ts에서 환경변수 로딩 확인\\n6. 설정 문서화",
-      "verificationCriteria": "환경변수를 통한 설정 변경이 정상 동작하고, 개발/운영 환경 구분이 명확해야 함. 하드코딩된 URL이 제거되고 설정 파일로 관리되어야 함.",
-      "analysisResult": "프론트엔드가 백엔드의 실제 데이터를 표시하지 못하는 문제의 핵심 원인은 포트 불일치입니다. 백엔드는 포트 8000에서 정상 동작하며 실제 주가 데이터를 제공하고 있지만, 프론트엔드 API 클라이언트는 포트 8892로 호출을 시도하여 연결에 실패하고 있습니다. 이를 해결하기 위해 프론트엔드 설정 수정, API 연결 검증, WebSocket 통신 점검을 순차적으로 수행해야 합니다."
+      "implementationGuide": "1. 모든 테스트 단계에서 발견된 오류 목록 정리\\n2. 우선순위별 오류 수정 (Critical → High → Medium)\\n3. TypeScript 타입 안정성 강화\\n4. Python 코드 정적 분석 및 최적화\\n5. 보안 취약점 검사 및 수정\\n6. 성능 최적화 및 메모리 누수 방지",
+      "verificationCriteria": "1. 모든 Critical 및 High 우선순위 오류 수정 완료\\n2. TypeScript 컴파일 시 warning 최소화\\n3. Python 코드가 PEP 8 표준 준수\\n4. 보안 스캔 결과 취약점 없음\\n5. 메모리 사용량 및 응답 시간 개선\\n6. 전체 시스템이 안정적으로 24시간 실행 가능",
+      "analysisResult": "V2 Investment Monitor 프로젝트의 체계적인 테스트 및 오류 수정을 통해 안정적이고 완성도 높은 실시간 투자 모니터링 웹 애플리케이션을 구축합니다. FastAPI + React + WebSocket 아키텍처 기반으로 DART 공시 모니터링과 주식 가격 추적 기능의 정상 동작을 보장하며, 프로덕션 준비 상태까지 완성도를 높입니다."
     }
   ]
 }
