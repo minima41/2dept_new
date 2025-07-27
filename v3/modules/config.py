@@ -58,6 +58,27 @@ KEYWORDS: List[str] = [
     "내부회계관리제도", "공시", "정정", "취소", "연기", "철회"
 ]
 
+# === 기본 DART 키워드 목록 ===
+DEFAULT_DART_KEYWORDS: List[str] = [
+    "합병", "분할", "매각", "취득", "투자", "지분", "출자", 
+    "신주", "유상증자", "무상증자", "주식매수", "자기주식", 
+    "배당", "이익잉여금", "자본준비금", "특별관계자", 
+    "주요주주", "경영권", "대주주", "전환사채", "감자"
+]
+
+# === 키워드 필터링 설정 ===
+# AND 조건 키워드 세트 (모든 키워드가 포함되어야 함)
+# 예: ["투자", "지분"] - 투자 AND 지분이 모두 포함된 공시만 필터링
+KEYWORD_AND_CONDITIONS: List[List[str]] = [
+    # 예시: 투자 관련 AND 조건들
+    # ["투자", "지분"],        # 투자 AND 지분 
+    # ["합병", "취득"],        # 합병 AND 취득
+    # ["유상증자", "신주"]     # 유상증자 AND 신주
+]
+
+# 키워드 필터링 모드
+KEYWORD_FILTER_MODE = os.getenv('KEYWORD_FILTER_MODE', 'OR')  # 'OR' 또는 'AND' 또는 'MIXED'
+
 # === 중요 공시 구분 ===
 IMPORTANT_SECTIONS: List[str] = [
     "주요사항보고서", "증권발행실무준칙", "기업결합", "분할", "합병", 
@@ -82,10 +103,39 @@ STOCK_MARKET_CLOSE_TIME = "15:30"
 STOCK_ALERT_THRESHOLD_HIGH = 5.0  # 상승 알림
 STOCK_ALERT_THRESHOLD_LOW = -3.0  # 하락 알림
 
-# === 로그 설정 ===
-LOG_LEVEL = "INFO"
-LOG_MAX_BYTES = 5 * 1024 * 1024  # 5MB
-LOG_BACKUP_COUNT = 3
+# === 로깅 시스템 설정 ===
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', str(5 * 1024 * 1024)))  # 5MB
+LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', '3'))
+
+# 로그 파일 이름 설정
+LOG_FILES = {
+    'app': 'app.log',                    # 일반 애플리케이션 로그
+    'error': 'error.log',                # 에러 전용 로그
+    'dart': 'dart_monitor.log',          # DART 모니터링 로그
+    'stock': 'stock_monitor.log',        # 주식 모니터링 로그
+    'email': 'email.log',                # 이메일 발송 로그
+    'websocket': 'websocket.log',        # WebSocket 연결 로그
+    'api': 'api_requests.log',           # API 요청/응답 로그
+    'performance': 'performance.log'      # 성능 모니터링 로그
+}
+
+# 로그 포맷 설정
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+# 개발/프로덕션 환경별 로깅 레벨
+LOG_LEVELS = {
+    'DEBUG': ['dart_monitor', 'stock_monitor', 'email_utils'],
+    'INFO': ['app', 'api_requests'],
+    'WARNING': ['websocket'],
+    'ERROR': ['error']
+}
+
+# 성능 로깅 설정
+PERFORMANCE_LOGGING_ENABLED = os.getenv('PERFORMANCE_LOGGING_ENABLED', 'True').lower() == 'true'
+SLOW_QUERY_THRESHOLD = float(os.getenv('SLOW_QUERY_THRESHOLD', '1.0'))  # 초
+API_RESPONSE_TIME_THRESHOLD = float(os.getenv('API_RESPONSE_TIME_THRESHOLD', '2.0'))  # 초
 
 # === 데이터 파일 경로 ===
 DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
@@ -95,6 +145,11 @@ LOGS_DIR = os.path.join(os.path.dirname(__file__), '..', 'logs')
 PROCESSED_IDS_FILE = os.path.join(DATA_DIR, 'processed_ids.txt')
 MONITORING_STOCKS_FILE = os.path.join(DATA_DIR, 'monitoring_stocks.json')
 NOTIFICATIONS_FILE = os.path.join(DATA_DIR, 'notifications.json')
+
+# DART 데이터 파일 경로들
+DART_COMPANIES_FILE = os.path.join(DATA_DIR, 'dart_companies.json')
+DART_KEYWORDS_FILE = os.path.join(DATA_DIR, 'dart_keywords.json')
+DAILY_HISTORY_FILE = os.path.join(DATA_DIR, 'daily_history.json')
 
 # === 외부 API 설정 ===
 DART_API_URL = "https://opendart.fss.or.kr/api"
@@ -127,3 +182,106 @@ DEFAULT_MONITORING_STOCKS = [
         "enabled": True
     }
 ]
+
+# === 확장된 주식 데이터 스키마 ===
+STOCK_DATA_SCHEMA = {
+    "code": str,            # 종목코드 (필수)
+    "name": str,            # 종목명 (필수)
+    "category": str,        # 카테고리: "매수" | "기타" (기본값: "기타")
+    "target_price": float,  # 목표가 (필수)
+    "stop_loss": float,     # 손절가 (필수)
+    "acquisition_price": float,  # 취득가 (선택, 수익률 계산용)
+    "alert_settings": dict,      # 알림 설정 (선택)
+    "memo": str,                # 메모 (선택)
+    "current_price": float,     # 현재가 (시스템 업데이트)
+    "change_percent": float,    # 등락률 (시스템 업데이트)
+    "last_updated": str,        # 마지막 업데이트 시간 (시스템 업데이트)
+    "enabled": bool,            # 모니터링 활성화 (기본값: True)
+    "triggered_alerts": list,   # 발생한 알림 기록 (시스템 관리)
+    "alert_prices": list,       # 알림 가격 목록 (시스템 관리)
+    "error": str                # 오류 정보 (시스템 관리)
+}
+
+# === 주식 카테고리 정의 ===
+STOCK_CATEGORIES = ["매수", "기타"]
+DEFAULT_STOCK_CATEGORY = "기타"
+
+# === 기본 알림 설정 ===
+DEFAULT_ALERT_SETTINGS = {
+    "daily_alert": True,        # 일일 알림 활성화
+    "rise_threshold": 5.0,      # 상승률 알림 임계값 (%)
+    "fall_threshold": 5.0,      # 하락률 알림 임계값 (%)
+    "parity_percent": 80.0,     # 패리티 알림 임계값 (%)
+    "target_alert": True,       # 목표가 도달 알림
+    "stop_loss_alert": True     # 손절가 도달 알림
+}
+
+# === 데이터 마이그레이션 설정 ===
+MIGRATION_VERSION = "1.1"  # 현재 데이터 스키마 버전
+BACKUP_ENABLED = True      # 마이그레이션 시 백업 생성 여부
+
+# === 동적 기업 관리 함수 ===
+
+def add_monitoring_company(company_code: str, company_name: str) -> bool:
+    """
+    모니터링 기업 추가
+    
+    Args:
+        company_code: 기업코드
+        company_name: 기업명
+        
+    Returns:
+        bool: 성공 여부
+    """
+    global COMPANIES
+    
+    try:
+        if company_code in COMPANIES:
+            return False  # 이미 존재하는 기업
+        
+        COMPANIES[company_code] = company_name
+        
+        # TODO: 향후 파일 저장 기능 추가 가능
+        # save_companies_to_file()
+        
+        return True
+        
+    except Exception as e:
+        print(f"기업 추가 오류: {e}")
+        return False
+
+def remove_monitoring_company(company_code: str) -> bool:
+    """
+    모니터링 기업 삭제
+    
+    Args:
+        company_code: 삭제할 기업코드
+        
+    Returns:
+        bool: 성공 여부
+    """
+    global COMPANIES
+    
+    try:
+        if company_code not in COMPANIES:
+            return False  # 존재하지 않는 기업
+        
+        del COMPANIES[company_code]
+        
+        # TODO: 향후 파일 저장 기능 추가 가능
+        # save_companies_to_file()
+        
+        return True
+        
+    except Exception as e:
+        print(f"기업 삭제 오류: {e}")
+        return False
+
+def get_monitoring_companies() -> Dict[str, str]:
+    """
+    현재 모니터링 기업 목록 반환
+    
+    Returns:
+        Dict[str, str]: 기업코드 -> 기업명 매핑
+    """
+    return COMPANIES.copy()

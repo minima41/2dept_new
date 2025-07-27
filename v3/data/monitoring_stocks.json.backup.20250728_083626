@@ -1,0 +1,98 @@
+{
+  "005930": {
+    "name": "삼성전자",
+    "target_price": 80000,
+    "stop_loss": 65000,
+    "enabled": true,
+    "category": "기타",
+    "current_price": 65900,
+    "change_percent": -0.15151515151515152,
+    "last_updated": "2025-07-27T23:11:26.294000",
+    "triggered_alerts": [],
+    "alert_prices": [
+      {
+        "id": "tp0",
+        "price": 80000,
+        "type": "TP Alert",
+        "category": "TP"
+      },
+      {
+        "id": "sl0",
+        "price": 65000,
+        "type": "SL Alert",
+        "category": "SL"
+      }
+    ],
+    "error": null
+  },
+  "000660": {
+    "name": "SK하이닉스",
+    "target_price": 150000,
+    "stop_loss": 120000,
+    "enabled": true,
+    "category": "기타",
+    "current_price": 266000,
+    "change_percent": -1.2987012987012987,
+    "last_updated": "2025-07-27T23:11:27.452831",
+    "triggered_alerts": [],
+    "alert_prices": [
+      {
+        "id": "tp0",
+        "price": 150000,
+        "type": "TP Alert",
+        "category": "TP"
+      },
+      {
+        "id": "sl0",
+        "price": 120000,
+        "type": "SL Alert",
+        "category": "SL"
+      }
+    ],
+    "error": null
+  },
+  "035420": {
+    "name": "NAVER",
+    "target_price": 200000,
+    "stop_loss": 160000,
+    "enabled": true,
+    "category": "기타",
+    "current_price": 234500,
+    "change_percent": 3.303964757709251,
+    "last_updated": "2025-07-27T23:11:28.598069",
+    "triggered_alerts": [],
+    "alert_prices": [
+      {
+        "id": "tp0",
+        "price": 200000,
+        "type": "TP Alert",
+        "category": "TP"
+      },
+      {
+        "id": "sl0",
+        "price": 160000,
+        "type": "SL Alert",
+        "category": "SL"
+      }
+    ],
+    "error": null
+  },
+  "066570": {
+    "current_price": 77100,
+    "change_percent": -1.0269576379974326,
+    "last_updated": "2025-07-27T23:11:29.822380",
+    "error": null,
+    "alert_prices": [
+      {
+        "id": "up0_",
+        "type": "Up Alert",
+        "price": 80955
+      },
+      {
+        "id": "down0_",
+        "type": "Down Alert",
+        "price": 73245
+      }
+    ]
+  }
+}

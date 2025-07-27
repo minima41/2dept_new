@@ -7,6 +7,7 @@ import logging
 import os
 import requests
 import time
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from filelock import FileLock
@@ -20,9 +21,20 @@ from .config import (
     STOCK_MARKET_CLOSE_TIME,
     STOCK_ALERT_THRESHOLD_HIGH,
     STOCK_ALERT_THRESHOLD_LOW,
-    REQUEST_TIMEOUT
+    REQUEST_TIMEOUT,
+    STOCK_DATA_SCHEMA,
+    STOCK_CATEGORIES,
+    DEFAULT_STOCK_CATEGORY,
+    DEFAULT_ALERT_SETTINGS,
+    MIGRATION_VERSION,
+    BACKUP_ENABLED
 )
-from .email_utils import send_stock_alert
+from .email_utils import (
+    send_stock_alert, 
+    send_parity_alert_enhanced, 
+    send_volatility_alert, 
+    send_target_stop_alert_enhanced
+)
 
 # PyKrx 가용성 확인
 try:
@@ -31,8 +43,11 @@ try:
 except ImportError:
     PYKRX_AVAILABLE = False
 
+# 개선된 로깅 시스템 적용
+from .logger_utils import get_logger, performance_monitor, log_exception
+
 # 로거 설정
-logger = logging.getLogger(__name__)
+logger = get_logger('stock')
 
 class StockMonitor:
     """주식 모니터링 클래스"""
@@ -41,51 +56,179 @@ class StockMonitor:
         self.monitoring_stocks_file = MONITORING_STOCKS_FILE
         self.lock_file = self.monitoring_stocks_file + '.lock'
         
+        # 일일 내역 파일 경로
+        self.daily_history_file = os.path.join(os.path.dirname(MONITORING_STOCKS_FILE), 'daily_history.json')
+        self.daily_history_lock_file = self.daily_history_file + '.lock'
+        
         # 데이터 디렉토리 생성
         os.makedirs(os.path.dirname(self.monitoring_stocks_file), exist_ok=True)
         
         # 초기 데이터 로드
         self.monitoring_stocks = self.load_monitoring_stocks()
+        
+        # 실시간 모니터링 관련 변수
+        self.is_monitoring = False
+        self.monitoring_thread = None
+        self.monitor_interval = 10  # 10초 간격
+        self.last_daily_report_date = None
     
     def load_monitoring_stocks(self) -> Dict:
-        """모니터링 주식 데이터 로드"""
+        """모니터링 주식 데이터 로드 (확장된 스키마 지원)"""
         try:
             if os.path.exists(self.monitoring_stocks_file):
                 with FileLock(self.lock_file):
                     with open(self.monitoring_stocks_file, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         
+                        # 데이터 마이그레이션 및 검증
+                        migrated_data = self._migrate_stock_data(data)
+                        
                         # triggered_alerts를 set으로 변환
-                        for code, info in data.items():
+                        for code, info in migrated_data.items():
                             if "triggered_alerts" in info and isinstance(info["triggered_alerts"], list):
                                 info["triggered_alerts"] = set(info["triggered_alerts"])
                         
-                        logger.info(f"모니터링 주식 데이터 로드: {len(data)}개 종목")
-                        return data
+                        logger.info(f"모니터링 주식 데이터 로드: {len(migrated_data)}개 종목")
+                        return migrated_data
             else:
                 # 기본 데이터로 초기화
                 logger.info("모니터링 주식 파일이 없어 기본 데이터로 초기화")
-                default_data = {}
-                for stock in DEFAULT_MONITORING_STOCKS:
-                    default_data[stock['code']] = {
-                        'name': stock['name'],
-                        'target_price': stock['target_price'],
-                        'stop_loss': stock['stop_loss'],
-                        'enabled': stock['enabled'],
-                        'category': '주식',
-                        'current_price': 0,
-                        'change_percent': 0.0,
-                        'last_updated': None,
-                        'triggered_alerts': set(),
-                        'alert_prices': []
-                    }
-                
+                default_data = self._create_default_stocks_data()
                 self.save_monitoring_stocks(default_data)
                 return default_data
                 
         except Exception as e:
             logger.error(f"모니터링 주식 데이터 로드 실패: {e}")
             return {}
+    
+    def _migrate_stock_data(self, data: Dict) -> Dict:
+        """기존 데이터를 새 스키마로 마이그레이션"""
+        migrated_data = {}
+        migration_count = 0
+        
+        for code, info in data.items():
+            try:
+                # 기존 데이터 구조 확인
+                migrated_info = self._validate_and_migrate_stock_info(code, info)
+                migrated_data[code] = migrated_info
+                
+                # 마이그레이션이 필요했던 경우 카운트
+                if self._needs_migration(info):
+                    migration_count += 1
+                    
+            except Exception as e:
+                logger.error(f"종목 {code} 마이그레이션 실패: {e}")
+                continue
+        
+        if migration_count > 0:
+            logger.info(f"데이터 마이그레이션 완료: {migration_count}개 종목")
+            
+            # 백업 생성 (옵션)
+            if BACKUP_ENABLED:
+                self._create_backup()
+        
+        return migrated_data
+    
+    def _validate_and_migrate_stock_info(self, code: str, info: Dict) -> Dict:
+        """개별 종목 정보 검증 및 마이그레이션"""
+        migrated_info = {}
+        
+        # 필수 필드 처리
+        migrated_info['name'] = info.get('name', f'종목 {code}')
+        migrated_info['target_price'] = float(info.get('target_price', 0))
+        migrated_info['stop_loss'] = float(info.get('stop_loss', 0))
+        migrated_info['enabled'] = bool(info.get('enabled', True))
+        
+        # 새로운 필드들 (기본값 설정)
+        migrated_info['category'] = self._validate_category(info.get('category', DEFAULT_STOCK_CATEGORY))
+        migrated_info['acquisition_price'] = float(info.get('acquisition_price', 0))
+        migrated_info['alert_settings'] = self._validate_alert_settings(info.get('alert_settings', {}))
+        migrated_info['memo'] = str(info.get('memo', ''))
+        
+        # 시스템 관리 필드들
+        migrated_info['current_price'] = float(info.get('current_price', 0))
+        migrated_info['change_percent'] = float(info.get('change_percent', 0.0))
+        migrated_info['last_updated'] = info.get('last_updated')
+        migrated_info['triggered_alerts'] = info.get('triggered_alerts', [])
+        migrated_info['alert_prices'] = info.get('alert_prices', [])
+        migrated_info['error'] = info.get('error')
+        
+        # 추가 필드들
+        migrated_info['daily_alert_enabled'] = bool(info.get('daily_alert_enabled', True))
+        
+        return migrated_info
+    
+    def _validate_category(self, category: str) -> str:
+        """카테고리 유효성 검증"""
+        if category in STOCK_CATEGORIES:
+            return category
+        
+        # 기존 "주식" 카테고리를 "기타"로 매핑
+        if category in ["주식", "stock", "equity"]:
+            return "기타"
+        
+        return DEFAULT_STOCK_CATEGORY
+    
+    def _validate_alert_settings(self, alert_settings: Dict) -> Dict:
+        """알림 설정 유효성 검증"""
+        validated_settings = DEFAULT_ALERT_SETTINGS.copy()
+        
+        if isinstance(alert_settings, dict):
+            for key, value in alert_settings.items():
+                if key in DEFAULT_ALERT_SETTINGS:
+                    try:
+                        # 타입에 따른 검증
+                        if isinstance(DEFAULT_ALERT_SETTINGS[key], bool):
+                            validated_settings[key] = bool(value)
+                        elif isinstance(DEFAULT_ALERT_SETTINGS[key], (int, float)):
+                            validated_settings[key] = float(value)
+                        else:
+                            validated_settings[key] = value
+                    except (ValueError, TypeError):
+                        logger.warning(f"알림 설정 {key} 값이 유효하지 않음: {value}")
+        
+        return validated_settings
+    
+    def _needs_migration(self, info: Dict) -> bool:
+        """마이그레이션이 필요한지 확인"""
+        required_new_fields = ['category', 'acquisition_price', 'alert_settings', 'memo']
+        return not all(field in info for field in required_new_fields)
+    
+    def _create_default_stocks_data(self) -> Dict:
+        """기본 주식 데이터 생성 (확장된 스키마)"""
+        default_data = {}
+        
+        for stock in DEFAULT_MONITORING_STOCKS:
+            default_data[stock['code']] = {
+                'name': stock['name'],
+                'target_price': float(stock['target_price']),
+                'stop_loss': float(stock['stop_loss']),
+                'enabled': bool(stock['enabled']),
+                'category': DEFAULT_STOCK_CATEGORY,
+                'acquisition_price': 0.0,
+                'alert_settings': DEFAULT_ALERT_SETTINGS.copy(),
+                'memo': '',
+                'current_price': 0.0,
+                'change_percent': 0.0,
+                'last_updated': None,
+                'triggered_alerts': set(),
+                'alert_prices': [],
+                'error': None,
+                'daily_alert_enabled': True
+            }
+        
+        return default_data
+    
+    def _create_backup(self):
+        """데이터 백업 생성"""
+        try:
+            if os.path.exists(self.monitoring_stocks_file):
+                backup_filename = f"{self.monitoring_stocks_file}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                import shutil
+                shutil.copy2(self.monitoring_stocks_file, backup_filename)
+                logger.info(f"데이터 백업 생성: {backup_filename}")
+        except Exception as e:
+            logger.error(f"백업 생성 실패: {e}")
     
     def save_monitoring_stocks(self, data: Dict):
         """모니터링 주식 데이터 저장"""
@@ -219,7 +362,7 @@ class StockMonitor:
             return f"종목 {stock_code}"
     
     def is_market_open(self) -> bool:
-        """시장 개장 시간 확인"""
+        """시장 개장 시간 확인 (09:00-15:30)"""
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         
@@ -227,11 +370,28 @@ class StockMonitor:
         if now.weekday() >= 5:  # 5: 토요일, 6: 일요일
             return False
         
-        return STOCK_MARKET_OPEN_TIME <= current_time <= STOCK_MARKET_CLOSE_TIME
+        # 한국 주식 시장 시간: 09:00-15:30
+        return "09:00" <= current_time <= "15:30"
+    
+    def is_market_closing_time(self) -> bool:
+        """장 종료 시간 확인 (15:30)"""
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        return current_time == "15:30" and now.weekday() < 5
+    
+    def normalize_category(self, category: str) -> str:
+        """카테고리 명칭 표준화"""
+        category_mapping = {
+            '기타': '주식',
+            'other': '주식',
+            'stock': '주식',
+            'mezzanine': '메자닌'
+        }
+        return category_mapping.get(category.lower(), category)
     
     def setup_alert_prices(self, stock_info: Dict, current_price: int):
-        """알림 가격 설정 (메자닌/기타 구분)"""
-        category = stock_info.get('category', '주식')
+        """알림 가격 설정 (메자닌/주식 구분)"""
+        category = self.normalize_category(stock_info.get('category', '주식'))
         alert_prices = []
         
         # 기본 TP/SL 설정
@@ -267,8 +427,8 @@ class StockMonitor:
                     "parity_percent": percent
                 })
         
-        # 기타: Up/Down 알림 (5% 상승/하락)
-        elif category == "주식" and not alert_prices:
+        # 주식: TP/SL 없으면 Up/Down 알림 (5% 상승/하락)
+        elif category == "주식" and len(alert_prices) == 0:
             alert_prices.extend([
                 {
                     "id": f"up0_{stock_info.get('code', '')}",
@@ -286,11 +446,41 @@ class StockMonitor:
         return alert_prices
     
     def check_price_alerts(self, stock_code: str, stock_name: str, current_price: int, previous_price: int, stock_info: Dict) -> bool:
-        """가격 알림 조건 확인"""
-        alert_prices = stock_info.get("alert_prices", [])
-        if not alert_prices:
+        """가격 알림 조건 확인 (확장된 알림 시스템)"""
+        alert_triggered = False
+        
+        # 시장 시간 체크 (09:00-15:30)
+        if not self.is_market_open():
             return False
         
+        # 1. 패리티 알림 체크 (메자닌 전용)
+        parity_alert = self.check_parity_alerts(stock_code, stock_info, current_price, previous_price)
+        if parity_alert:
+            alert_triggered = True
+        
+        # 2. 목표가/손절가 알림 체크
+        target_stop_alert = self.check_target_stop_alerts(stock_code, stock_info, current_price, previous_price)
+        if target_stop_alert:
+            alert_triggered = True
+        
+        # 3. 급등급락 알림 체크
+        volatility_alert = self.check_volatility_alerts(stock_code, stock_info, current_price)
+        if volatility_alert:
+            alert_triggered = True
+        
+        # 4. 기존 alert_prices 시스템 호환성 유지
+        alert_prices = stock_info.get("alert_prices", [])
+        if alert_prices:
+            legacy_alert = self._check_legacy_alerts(stock_code, stock_name, current_price, previous_price, stock_info)
+            if legacy_alert:
+                alert_triggered = True
+        
+        return alert_triggered
+    
+    def _check_legacy_alerts(self, stock_code: str, stock_name: str, current_price: int, previous_price: int, stock_info: Dict) -> bool:
+        """기존 alert_prices 시스템 체크 (호환성 유지)"""
+        alert_prices = stock_info.get("alert_prices", [])
+        triggered_alerts = stock_info.get("triggered_alerts", set())
         alert_triggered = False
         
         for alert in alert_prices:
@@ -298,14 +488,14 @@ class StockMonitor:
             target_price = alert.get("price", 0)
             alert_type = alert.get("type", "")
             
-            if alert_id in stock_info.get("triggered_alerts", set()):
+            if alert_id in triggered_alerts:
                 continue
             
             # TP/상승 알림
             if alert_type in ["TP Alert", "Up Alert"]:
                 if current_price >= target_price and previous_price < target_price:
                     self.send_price_alert(stock_code, stock_name, current_price, target_price, "TARGET_UP", alert_type)
-                    stock_info["triggered_alerts"].add(alert_id)
+                    triggered_alerts.add(alert_id)
                     alert_triggered = True
             
             # SL/하락 알림  
@@ -313,27 +503,8 @@ class StockMonitor:
                 if current_price <= target_price and previous_price > target_price:
                     alert_msg_type = "STOP_LOSS" if alert_type == "SL Alert" else "TARGET_DOWN"
                     self.send_price_alert(stock_code, stock_name, current_price, target_price, alert_msg_type, alert_type)
-                    stock_info["triggered_alerts"].add(alert_id)
+                    triggered_alerts.add(alert_id)
                     alert_triggered = True
-            
-            # 패리티 알림
-            elif alert_type == "Parity Alert":
-                parity_percent = alert.get("parity_percent", 100)
-                if current_price >= target_price and previous_price < target_price:
-                    self.send_parity_alert(stock_code, stock_name, current_price, parity_percent)
-                    stock_info["triggered_alerts"].add(alert_id)
-                    alert_triggered = True
-        
-        # 일간 급등/급락 알림
-        if stock_info.get("daily_alert_enabled", False):
-            change_percent = stock_info.get("change_percent", 0.0)
-            
-            if change_percent >= STOCK_ALERT_THRESHOLD_HIGH:
-                self.send_daily_alert(stock_code, stock_name, current_price, change_percent, "SURGE")
-                alert_triggered = True
-            elif change_percent <= STOCK_ALERT_THRESHOLD_LOW:
-                self.send_daily_alert(stock_code, stock_name, current_price, change_percent, "DROP")
-                alert_triggered = True
         
         return alert_triggered
     
@@ -441,33 +612,158 @@ class StockMonitor:
         """모니터링 종목 목록 반환"""
         return self.monitoring_stocks.copy()
     
-    def add_stock(self, stock_code: str, stock_name: str = None, target_price: int = 0, stop_loss: int = 0, category: str = "주식") -> bool:
-        """모니터링 종목 추가"""
+    def add_stock(self, 
+                  stock_code: str, 
+                  stock_name: str = None, 
+                  target_price: float = 0, 
+                  stop_loss: float = 0, 
+                  category: str = None,
+                  acquisition_price: float = 0,
+                  alert_settings: Dict = None,
+                  memo: str = '') -> bool:
+        """모니터링 종목 추가 (확장된 스키마 지원)"""
         try:
             if stock_name is None:
                 stock_name = self.get_stock_name(stock_code)
             
+            if category is None:
+                category = DEFAULT_STOCK_CATEGORY
+            
+            if alert_settings is None:
+                alert_settings = DEFAULT_ALERT_SETTINGS.copy()
+            
+            # 카테고리 유효성 검증
+            validated_category = self._validate_category(category)
+            validated_alert_settings = self._validate_alert_settings(alert_settings)
+            
             self.monitoring_stocks[stock_code] = {
                 'name': stock_name,
-                'target_price': target_price,
-                'stop_loss': stop_loss,
-                'category': category,
+                'target_price': float(target_price),
+                'stop_loss': float(stop_loss),
+                'category': validated_category,
+                'acquisition_price': float(acquisition_price),
+                'alert_settings': validated_alert_settings,
+                'memo': str(memo),
                 'enabled': True,
-                'current_price': 0,
+                'current_price': 0.0,
                 'change_percent': 0.0,
                 'last_updated': None,
                 'triggered_alerts': set(),
                 'alert_prices': [],
+                'error': None,
                 'daily_alert_enabled': True
             }
             
             self.save_monitoring_stocks(self.monitoring_stocks)
-            logger.info(f"모니터링 종목 추가: {stock_name} ({stock_code})")
+            logger.info(f"모니터링 종목 추가: {stock_name} ({stock_code}) - 카테고리: {validated_category}")
             return True
             
         except Exception as e:
             logger.error(f"종목 추가 실패: {e}")
             return False
+    
+    def update_stock_info(self, 
+                         stock_code: str,
+                         name: str = None,
+                         target_price: float = None,
+                         stop_loss: float = None,
+                         category: str = None,
+                         acquisition_price: float = None,
+                         alert_settings: Dict = None,
+                         memo: str = None,
+                         enabled: bool = None) -> bool:
+        """종목 정보 업데이트"""
+        try:
+            if stock_code not in self.monitoring_stocks:
+                logger.error(f"존재하지 않는 종목: {stock_code}")
+                return False
+            
+            stock_info = self.monitoring_stocks[stock_code]
+            
+            # 필드별 업데이트
+            if name is not None:
+                stock_info['name'] = str(name)
+            if target_price is not None:
+                stock_info['target_price'] = float(target_price)
+            if stop_loss is not None:
+                stock_info['stop_loss'] = float(stop_loss)
+            if category is not None:
+                stock_info['category'] = self._validate_category(category)
+            if acquisition_price is not None:
+                stock_info['acquisition_price'] = float(acquisition_price)
+            if alert_settings is not None:
+                stock_info['alert_settings'] = self._validate_alert_settings(alert_settings)
+            if memo is not None:
+                stock_info['memo'] = str(memo)
+            if enabled is not None:
+                stock_info['enabled'] = bool(enabled)
+            
+            self.save_monitoring_stocks(self.monitoring_stocks)
+            logger.info(f"종목 정보 업데이트: {stock_info['name']} ({stock_code})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"종목 정보 업데이트 실패: {e}")
+            return False
+    
+    def get_stocks_by_category(self, category: str = None) -> Dict:
+        """카테고리별 종목 조회"""
+        if category is None:
+            return self.monitoring_stocks.copy()
+        
+        filtered_stocks = {}
+        for code, info in self.monitoring_stocks.items():
+            if info.get('category') == category:
+                filtered_stocks[code] = info
+        
+        return filtered_stocks
+    
+    def validate_stock_data(self, stock_data: Dict) -> Dict:
+        """종목 데이터 유효성 검증"""
+        validation_result = {
+            'valid': True,
+            'errors': [],
+            'warnings': []
+        }
+        
+        try:
+            # 필수 필드 확인
+            required_fields = ['name', 'target_price', 'stop_loss']
+            for field in required_fields:
+                if field not in stock_data:
+                    validation_result['errors'].append(f"필수 필드 누락: {field}")
+                    validation_result['valid'] = False
+            
+            # 숫자 필드 검증
+            numeric_fields = ['target_price', 'stop_loss', 'acquisition_price', 'current_price', 'change_percent']
+            for field in numeric_fields:
+                if field in stock_data:
+                    try:
+                        float(stock_data[field])
+                    except (ValueError, TypeError):
+                        validation_result['errors'].append(f"숫자 필드 오류: {field}")
+                        validation_result['valid'] = False
+            
+            # 카테고리 검증
+            if 'category' in stock_data:
+                if stock_data['category'] not in STOCK_CATEGORIES:
+                    validation_result['warnings'].append(f"알 수 없는 카테고리: {stock_data['category']}")
+            
+            # 목표가와 손절가 논리 검증
+            if 'target_price' in stock_data and 'stop_loss' in stock_data:
+                try:
+                    tp = float(stock_data['target_price'])
+                    sl = float(stock_data['stop_loss'])
+                    if tp > 0 and sl > 0 and tp <= sl:
+                        validation_result['warnings'].append("목표가가 손절가보다 낮거나 같습니다")
+                except (ValueError, TypeError):
+                    pass
+            
+        except Exception as e:
+            validation_result['errors'].append(f"검증 중 오류: {e}")
+            validation_result['valid'] = False
+        
+        return validation_result
     
     def remove_stock(self, stock_code: str) -> bool:
         """모니터링 종목 제거"""
@@ -483,10 +779,587 @@ class StockMonitor:
         except Exception as e:
             logger.error(f"종목 제거 실패: {e}")
             return False
+    
+    def start_real_time_monitoring(self):
+        """실시간 모니터링 시작"""
+        if self.is_monitoring:
+            logger.warning("실시간 모니터링이 이미 실행 중입니다")
+            return False
+        
+        self.is_monitoring = True
+        self.monitoring_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
+        self.monitoring_thread.start()
+        logger.info("실시간 주식 모니터링 시작")
+        return True
+    
+    def stop_real_time_monitoring(self):
+        """실시간 모니터링 중지"""
+        if not self.is_monitoring:
+            logger.warning("실시간 모니터링이 실행되지 않고 있습니다")
+            return False
+        
+        self.is_monitoring = False
+        if self.monitoring_thread:
+            self.monitoring_thread.join(timeout=5)
+        logger.info("실시간 주식 모니터링 중지")
+        return True
+    
+    def _monitoring_loop(self):
+        """모니터링 루프 (별도 스레드에서 실행)"""
+        logger.info("모니터링 루프 시작")
+        
+        while self.is_monitoring:
+            try:
+                current_time = datetime.now()
+                
+                # 시장 시간 체크
+                if self.is_market_open():
+                    logger.debug("시장 개장 중 - 주가 업데이트 실행")
+                    self._update_all_stocks_realtime()
+                    
+                    # 장 종료 시간에 일일 보고서 발송
+                    if self.is_market_closing_time():
+                        self._send_daily_report()
+                else:
+                    logger.debug("시장 폐장 중 - 대기")
+                
+                # 10초 대기
+                for _ in range(self.monitor_interval):
+                    if not self.is_monitoring:
+                        break
+                    time.sleep(1)
+                    
+            except Exception as e:
+                logger.error(f"모니터링 루프 오류: {e}")
+                time.sleep(self.monitor_interval)
+        
+        logger.info("모니터링 루프 종료")
+    
+    def _update_all_stocks_realtime(self):
+        """실시간 모든 종목 업데이트 (모니터링 스레드용)"""
+        try:
+            enabled_stocks = [code for code, info in self.monitoring_stocks.items() if info.get('enabled', True)]
+            
+            for stock_code in enabled_stocks:
+                if not self.is_monitoring:  # 모니터링 중지 시 즉시 종료
+                    break
+                
+                try:
+                    self.update_stock_price(stock_code)
+                    time.sleep(0.5)  # API 부하 방지
+                except Exception as e:
+                    logger.error(f"실시간 업데이트 중 오류 - {stock_code}: {e}")
+            
+            # 업데이트된 데이터 저장
+            self.save_monitoring_stocks(self.monitoring_stocks)
+            
+        except Exception as e:
+            logger.error(f"실시간 전체 업데이트 실패: {e}")
+    
+    def _send_daily_report(self):
+        """일일 보고서 발송"""
+        try:
+            today = datetime.now().date()
+            
+            # 이미 오늘 보고서를 발송했다면 스킵
+            if self.last_daily_report_date == today:
+                return
+            
+            logger.info("일일 주식 모니터링 보고서 생성 시작")
+            
+            # 오늘의 주요 변동사항 수집
+            report_data = self._generate_daily_report_data()
+            
+            # 이메일 발송
+            success = self._send_daily_report_email(report_data)
+            
+            if success:
+                self.last_daily_report_date = today
+                logger.info("일일 보고서 발송 완료")
+            else:
+                logger.error("일일 보고서 발송 실패")
+                
+        except Exception as e:
+            logger.error(f"일일 보고서 생성 중 오류: {e}")
+    
+    def _generate_daily_report_data(self) -> Dict:
+        """일일 보고서 데이터 생성"""
+        today = datetime.now().date()
+        report_data = {
+            'date': today.strftime('%Y-%m-%d'),
+            'total_stocks': len(self.monitoring_stocks),
+            'active_stocks': len([s for s in self.monitoring_stocks.values() if s.get('enabled', True)]),
+            'gainers': [],
+            'losers': [],
+            'alert_triggered': [],
+            'summary': {}
+        }
+        
+        # 각 종목별 분석
+        for code, info in self.monitoring_stocks.items():
+            if not info.get('enabled', True):
+                continue
+                
+            change_percent = info.get('change_percent', 0)
+            current_price = info.get('current_price', 0)
+            
+            stock_data = {
+                'code': code,
+                'name': info.get('name', code),
+                'current_price': current_price,
+                'change_percent': change_percent,
+                'category': info.get('category', '주식')
+            }
+            
+            # 상승/하락 분류 (3% 이상)
+            if change_percent >= 3.0:
+                report_data['gainers'].append(stock_data)
+            elif change_percent <= -3.0:
+                report_data['losers'].append(stock_data)
+            
+            # 오늘 트리거된 알림 확인
+            if info.get('triggered_alerts'):
+                stock_data['alerts'] = list(info.get('triggered_alerts', []))
+                report_data['alert_triggered'].append(stock_data)
+        
+        # 정렬
+        report_data['gainers'].sort(key=lambda x: x['change_percent'], reverse=True)
+        report_data['losers'].sort(key=lambda x: x['change_percent'])
+        
+        # 요약 정보
+        report_data['summary'] = {
+            'gainers_count': len(report_data['gainers']),
+            'losers_count': len(report_data['losers']),
+            'alerts_count': len(report_data['alert_triggered'])
+        }
+        
+        return report_data
+    
+    def _send_daily_report_email(self, report_data: Dict) -> bool:
+        """일일 보고서 이메일 발송"""
+        try:
+            from .email_utils import send_daily_stock_report
+            
+            # 보고서 HTML 생성
+            html_content = self._generate_report_html(report_data)
+            
+            # 이메일 발송
+            subject = f"[D2 Dash] 일일 주식 모니터링 보고서 - {report_data['date']}"
+            success = send_daily_stock_report(subject, html_content, report_data)
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"일일 보고서 이메일 발송 중 오류: {e}")
+            return False
+    
+    def _generate_report_html(self, report_data: Dict) -> str:
+        """보고서 HTML 생성"""
+        html = f"""
+        <h2>📊 일일 주식 모니터링 보고서</h2>
+        <p><strong>날짜:</strong> {report_data['date']}</p>
+        <p><strong>모니터링 종목:</strong> {report_data['active_stocks']}/{report_data['total_stocks']}개</p>
+        
+        <h3>📈 주요 상승 종목 ({report_data['summary']['gainers_count']}개)</h3>
+        <ul>
+        """
+        
+        for stock in report_data['gainers']:
+            html += f"<li><strong>{stock['name']} ({stock['code']})</strong>: {stock['current_price']:,}원 (+{stock['change_percent']:.2f}%)</li>"
+        
+        if not report_data['gainers']:
+            html += "<li>3% 이상 상승한 종목이 없습니다.</li>"
+        
+        html += f"""
+        </ul>
+        
+        <h3>📉 주요 하락 종목 ({report_data['summary']['losers_count']}개)</h3>
+        <ul>
+        """
+        
+        for stock in report_data['losers']:
+            html += f"<li><strong>{stock['name']} ({stock['code']})</strong>: {stock['current_price']:,}원 ({stock['change_percent']:.2f}%)</li>"
+        
+        if not report_data['losers']:
+            html += "<li>3% 이상 하락한 종목이 없습니다.</li>"
+        
+        html += f"""
+        </ul>
+        
+        <h3>🚨 오늘 발생한 알림 ({report_data['summary']['alerts_count']}개)</h3>
+        <ul>
+        """
+        
+        for stock in report_data['alert_triggered']:
+            alerts_str = ', '.join(stock.get('alerts', []))
+            html += f"<li><strong>{stock['name']} ({stock['code']})</strong>: {alerts_str}</li>"
+        
+        if not report_data['alert_triggered']:
+            html += "<li>오늘 발생한 알림이 없습니다.</li>"
+        
+        html += """
+        </ul>
+        
+        <hr>
+        <p><small>D2 Dash 투자 모니터링 시스템에서 자동 발송된 메일입니다.</small></p>
+        """
+        
+        return html
+    
+    def get_monitoring_status(self) -> Dict:
+        """모니터링 상태 정보 반환"""
+        return {
+            'is_monitoring': self.is_monitoring,
+            'is_market_open': self.is_market_open(),
+            'monitor_interval': self.monitor_interval,
+            'active_stocks_count': len([s for s in self.monitoring_stocks.values() if s.get('enabled', True)]),
+            'total_stocks_count': len(self.monitoring_stocks),
+            'last_daily_report_date': self.last_daily_report_date.isoformat() if self.last_daily_report_date else None
+        }
+    
+    def save_daily_alert(self, stock_code: str, stock_name: str, alert_type: str, message: str, 
+                         current_price: int = 0, change_percent: float = 0.0) -> bool:
+        """일일 알림 내역 저장"""
+        try:
+            today = datetime.now().strftime('%Y-%m-%d')
+            current_time = datetime.now().strftime('%H:%M:%S')
+            
+            # 기존 일일 내역 로드
+            daily_history = self.load_daily_history()
+            
+            # 오늘 날짜 키가 없으면 생성
+            if today not in daily_history['alerts']:
+                daily_history['alerts'][today] = []
+            
+            # 새 알림 내역 추가
+            alert_entry = {
+                'time': current_time,
+                'stock_code': stock_code,
+                'stock_name': stock_name,
+                'alert_type': alert_type,
+                'message': message,
+                'current_price': current_price,
+                'change_percent': change_percent,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            daily_history['alerts'][today].append(alert_entry)
+            
+            # 7일 이전 데이터 정리 (옵션)
+            self._cleanup_old_alerts(daily_history, days_to_keep=7)
+            
+            # 파일에 저장
+            with FileLock(self.daily_history_lock_file):
+                with open(self.daily_history_file, 'w', encoding='utf-8') as f:
+                    json.dump(daily_history, f, ensure_ascii=False, indent=2)
+            
+            logger.debug(f"일일 알림 내역 저장: {stock_name} - {alert_type}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"일일 알림 내역 저장 실패: {e}")
+            return False
+    
+    def load_daily_history(self) -> Dict:
+        """일일 내역 데이터 로드"""
+        try:
+            if os.path.exists(self.daily_history_file):
+                with FileLock(self.daily_history_lock_file):
+                    with open(self.daily_history_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        
+                        # 기본 구조 확인 및 초기화
+                        if 'alerts' not in data:
+                            data['alerts'] = {}
+                        if 'description' not in data:
+                            data['description'] = "일일 알림 내역 저장 파일"
+                        if 'version' not in data:
+                            data['version'] = "1.0"
+                        
+                        return data
+            else:
+                # 기본 구조로 초기화
+                default_data = {
+                    "description": "일일 알림 내역 저장 파일",
+                    "version": "1.0",
+                    "alerts": {}
+                }
+                
+                with FileLock(self.daily_history_lock_file):
+                    with open(self.daily_history_file, 'w', encoding='utf-8') as f:
+                        json.dump(default_data, f, ensure_ascii=False, indent=2)
+                
+                return default_data
+                
+        except Exception as e:
+            logger.error(f"일일 내역 데이터 로드 실패: {e}")
+            return {
+                "description": "일일 알림 내역 저장 파일",
+                "version": "1.0",
+                "alerts": {}
+            }
+    
+    def _cleanup_old_alerts(self, daily_history: Dict, days_to_keep: int = 7):
+        """오래된 알림 내역 정리"""
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+            cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+            
+            dates_to_remove = []
+            for date_str in daily_history['alerts'].keys():
+                if date_str < cutoff_str:
+                    dates_to_remove.append(date_str)
+            
+            for date_str in dates_to_remove:
+                del daily_history['alerts'][date_str]
+                logger.debug(f"오래된 알림 내역 삭제: {date_str}")
+                
+        except Exception as e:
+            logger.warning(f"오래된 알림 내역 정리 중 오류: {e}")
+    
+    def check_parity_alerts(self, stock_code: str, stock_info: Dict, current_price: int, previous_price: int) -> bool:
+        """패리티 알림 체크 (메자닌 전용)"""
+        if stock_info.get('category') != '메자닌':
+            return False
+        
+        alert_settings = stock_info.get('alert_settings', {})
+        if not alert_settings.get('parity_enabled', True):
+            return False
+        
+        # 전환가격 확인
+        conversion_price = stock_info.get('acquisition_price', 0)  # 취득가를 전환가격으로 사용
+        if conversion_price <= 0:
+            return False
+        
+        triggered_alerts = stock_info.get('triggered_alerts', set())
+        alert_triggered = False
+        
+        # 패리티 임계값들 체크 (80%, 100%, 120%)
+        parity_thresholds = [80, 100, 120]
+        
+        for threshold in parity_thresholds:
+            alert_id = f"parity_{threshold}"
+            if alert_id in triggered_alerts:
+                continue
+            
+            # 패리티 계산
+            current_parity = (current_price / conversion_price) * 100
+            previous_parity = (previous_price / conversion_price) * 100 if previous_price > 0 else 0
+            
+            # 임계값 도달 체크
+            if current_parity >= threshold and previous_parity < threshold:
+                stock_name = stock_info.get('name', stock_code)
+                
+                # 확장된 패리티 알림 발송
+                success = send_parity_alert_enhanced(
+                    stock_name, stock_code, current_price, threshold, conversion_price
+                )
+                
+                if success:
+                    # 트리거된 알림 기록
+                    triggered_alerts.add(alert_id)
+                    
+                    # 일일 내역 저장
+                    self.save_daily_alert(
+                        stock_code, stock_name, f"패리티_{threshold}%", 
+                        f"패리티 {threshold}% 도달", current_price, 0.0
+                    )
+                    
+                    alert_triggered = True
+                    logger.info(f"패리티 알림 발송: {stock_name} - {threshold}%")
+        
+        return alert_triggered
+    
+    def check_target_stop_alerts(self, stock_code: str, stock_info: Dict, current_price: int, previous_price: int) -> bool:
+        """목표가/손절가 알림 체크"""
+        alert_settings = stock_info.get('alert_settings', {})
+        if not alert_settings.get('target_stop_enabled', True):
+            return False
+        
+        triggered_alerts = stock_info.get('triggered_alerts', set())
+        alert_triggered = False
+        stock_name = stock_info.get('name', stock_code)
+        acquisition_price = stock_info.get('acquisition_price', 0)
+        
+        # 목표가 체크
+        target_price = stock_info.get('target_price', 0)
+        if target_price > 0:
+            alert_id = f"target_price_{target_price}"
+            if alert_id not in triggered_alerts:
+                if current_price >= target_price and previous_price < target_price:
+                    success = send_target_stop_alert_enhanced(
+                        stock_name, stock_code, current_price, target_price, 
+                        "target_price", acquisition_price
+                    )
+                    
+                    if success:
+                        triggered_alerts.add(alert_id)
+                        self.save_daily_alert(
+                            stock_code, stock_name, "목표가_달성", 
+                            f"목표가 {target_price:,}원 달성", current_price
+                        )
+                        alert_triggered = True
+                        logger.info(f"목표가 알림 발송: {stock_name} - {target_price:,}원")
+        
+        # 손절가 체크
+        stop_loss = stock_info.get('stop_loss', 0)
+        if stop_loss > 0:
+            alert_id = f"stop_loss_{stop_loss}"
+            if alert_id not in triggered_alerts:
+                if current_price <= stop_loss and previous_price > stop_loss:
+                    success = send_target_stop_alert_enhanced(
+                        stock_name, stock_code, current_price, stop_loss, 
+                        "stop_loss", acquisition_price
+                    )
+                    
+                    if success:
+                        triggered_alerts.add(alert_id)
+                        self.save_daily_alert(
+                            stock_code, stock_name, "손절가_도달", 
+                            f"손절가 {stop_loss:,}원 도달", current_price
+                        )
+                        alert_triggered = True
+                        logger.info(f"손절가 알림 발송: {stock_name} - {stop_loss:,}원")
+        
+        return alert_triggered
+    
+    def check_volatility_alerts(self, stock_code: str, stock_info: Dict, current_price: int) -> bool:
+        """급등급락 알림 체크"""
+        alert_settings = stock_info.get('alert_settings', {})
+        if not alert_settings.get('volatility_enabled', True):
+            return False
+        
+        change_percent = stock_info.get('change_percent', 0.0)
+        triggered_alerts = stock_info.get('triggered_alerts', set())
+        alert_triggered = False
+        stock_name = stock_info.get('name', stock_code)
+        
+        # 급등 체크
+        surge_threshold = alert_settings.get('surge_threshold', 5.0)
+        surge_alert_id = f"surge_{datetime.now().strftime('%Y%m%d')}"
+        
+        if (change_percent >= surge_threshold and 
+            surge_alert_id not in triggered_alerts):
+            
+            success = send_volatility_alert(
+                stock_name, stock_code, current_price, change_percent, 
+                "surge", surge_threshold
+            )
+            
+            if success:
+                triggered_alerts.add(surge_alert_id)
+                self.save_daily_alert(
+                    stock_code, stock_name, "급등", 
+                    f"일일 급등 {change_percent:+.2f}%", current_price, change_percent
+                )
+                alert_triggered = True
+                logger.info(f"급등 알림 발송: {stock_name} - {change_percent:+.2f}%")
+        
+        # 급락 체크
+        drop_threshold = alert_settings.get('drop_threshold', -5.0)
+        drop_alert_id = f"drop_{datetime.now().strftime('%Y%m%d')}"
+        
+        if (change_percent <= drop_threshold and 
+            drop_alert_id not in triggered_alerts):
+            
+            success = send_volatility_alert(
+                stock_name, stock_code, current_price, change_percent, 
+                "drop", drop_threshold
+            )
+            
+            if success:
+                triggered_alerts.add(drop_alert_id)
+                self.save_daily_alert(
+                    stock_code, stock_name, "급락", 
+                    f"일일 급락 {change_percent:+.2f}%", current_price, change_percent
+                )
+                alert_triggered = True
+                logger.info(f"급락 알림 발송: {stock_name} - {change_percent:+.2f}%")
+        
+        return alert_triggered
+
+    def get_daily_alert_history(self, target_date: str = None) -> Dict:
+        """일일 알림 내역 조회"""
+        if target_date is None:
+            target_date = datetime.now().strftime('%Y-%m-%d')
+        
+        alert_history = {
+            'date': target_date,
+            'stock_alerts': [],
+            'price_alerts': [],
+            'daily_reports': [],
+            'summary': {
+                'total_alerts': 0,
+                'stock_count': 0,
+                'alert_types': {}
+            }
+        }
+        
+        try:
+            # 종목별 트리거된 알림 수집
+            for code, info in self.monitoring_stocks.items():
+                triggered_alerts = info.get('triggered_alerts', set())
+                if triggered_alerts:
+                    stock_alert = {
+                        'stock_code': code,
+                        'stock_name': info.get('name', code),
+                        'category': info.get('category', '기타'),
+                        'current_price': info.get('current_price', 0),
+                        'change_percent': info.get('change_percent', 0),
+                        'triggered_alerts': list(triggered_alerts) if isinstance(triggered_alerts, set) else triggered_alerts,
+                        'alert_count': len(triggered_alerts),
+                        'last_updated': info.get('last_updated', '')
+                    }
+                    alert_history['stock_alerts'].append(stock_alert)
+                    alert_history['summary']['total_alerts'] += len(triggered_alerts)
+                    
+                    # 알림 타입별 카운트
+                    for alert_id in triggered_alerts:
+                        alert_type = 'unknown'
+                        if 'tp' in alert_id.lower():
+                            alert_type = 'target_price'
+                        elif 'sl' in alert_id.lower():
+                            alert_type = 'stop_loss'
+                        elif 'up' in alert_id.lower():
+                            alert_type = 'price_up'
+                        elif 'down' in alert_id.lower():
+                            alert_type = 'price_down'
+                        elif 'parity' in alert_id.lower():
+                            alert_type = 'parity'
+                        
+                        alert_history['summary']['alert_types'][alert_type] = \
+                            alert_history['summary']['alert_types'].get(alert_type, 0) + 1
+            
+            alert_history['summary']['stock_count'] = len(alert_history['stock_alerts'])
+            
+            # 가격 알림 내역 생성 (alert_prices에서 추출)
+            for code, info in self.monitoring_stocks.items():
+                alert_prices = info.get('alert_prices', [])
+                for alert in alert_prices:
+                    if alert.get('id') in info.get('triggered_alerts', set()):
+                        price_alert = {
+                            'stock_code': code,
+                            'stock_name': info.get('name', code),
+                            'alert_id': alert.get('id'),
+                            'alert_type': alert.get('type', 'Unknown'),
+                            'target_price': alert.get('price', 0),
+                            'current_price': info.get('current_price', 0),
+                            'category': alert.get('category', 'OTHER'),
+                            'triggered_time': info.get('last_updated', '')
+                        }
+                        alert_history['price_alerts'].append(price_alert)
+            
+            return alert_history
+            
+        except Exception as e:
+            logger.error(f"일일 알림 내역 조회 실패: {e}")
+            return alert_history
 
 # 전역 인스턴스
 stock_monitor = StockMonitor()
 
+@performance_monitor('주식 가격 업데이트')
+@log_exception('stock')
 def update_all_stocks() -> Dict[str, Dict]:
     """모든 종목 가격 업데이트 (편의 함수)"""
     return stock_monitor.update_all_stocks()
@@ -495,10 +1368,38 @@ def get_monitoring_stocks() -> Dict:
     """모니터링 종목 목록 조회 (편의 함수)"""
     return stock_monitor.get_monitoring_stocks()
 
-def add_monitoring_stock(stock_code: str, stock_name: str = None, target_price: int = 0, stop_loss: int = 0, category: str = "주식") -> bool:
+def add_monitoring_stock(stock_code: str, 
+                        stock_name: str = None, 
+                        target_price: float = 0, 
+                        stop_loss: float = 0, 
+                        category: str = None,
+                        acquisition_price: float = 0,
+                        alert_settings: Dict = None,
+                        memo: str = '') -> bool:
     """모니터링 종목 추가 (편의 함수)"""
-    return stock_monitor.add_stock(stock_code, stock_name, target_price, stop_loss, category)
+    return stock_monitor.add_stock(stock_code, stock_name, target_price, stop_loss, category, acquisition_price, alert_settings, memo)
+
+def update_monitoring_stock(stock_code: str, **kwargs) -> bool:
+    """모니터링 종목 정보 업데이트 (편의 함수)"""
+    return stock_monitor.update_stock_info(stock_code, **kwargs)
+
+def get_stocks_by_category(category: str = None) -> Dict:
+    """카테고리별 종목 조회 (편의 함수)"""
+    return stock_monitor.get_stocks_by_category(category)
+
+def validate_stock_data(stock_data: Dict) -> Dict:
+    """종목 데이터 유효성 검증 (편의 함수)"""
+    return stock_monitor.validate_stock_data(stock_data)
 
 def remove_monitoring_stock(stock_code: str) -> bool:
     """모니터링 종목 제거 (편의 함수)"""
     return stock_monitor.remove_stock(stock_code)
+
+def get_daily_alert_history(target_date: str = None) -> Dict:
+    """일일 알림 내역 조회 (편의 함수)"""
+    return stock_monitor.get_daily_alert_history(target_date)
+
+def save_daily_alert(stock_code: str, stock_name: str, alert_type: str, message: str, 
+                     current_price: int = 0, change_percent: float = 0.0) -> bool:
+    """일일 알림 내역 저장 (편의 함수)"""
+    return stock_monitor.save_daily_alert(stock_code, stock_name, alert_type, message, current_price, change_percent)

@@ -279,3 +279,333 @@ def send_stock_alert(stock_name: str, current_price: int, change_rate: float, al
 
 # datetime import 추가
 from datetime import datetime
+
+def send_daily_stock_report(subject: str, html_content: str, report_data: dict) -> bool:
+    """
+    일일 주식 모니터링 보고서 이메일 발송
+    
+    Args:
+        subject: 이메일 제목
+        html_content: HTML 내용
+        report_data: 보고서 데이터
+    
+    Returns:
+        bool: 발송 성공 여부
+    """
+    
+    # 텍스트 버전 생성
+    text_content = f"""
+일일 주식 모니터링 보고서 - {report_data['date']}
+
+모니터링 종목: {report_data['active_stocks']}/{report_data['total_stocks']}개
+
+주요 상승 종목 ({report_data['summary']['gainers_count']}개):
+"""
+    
+    for stock in report_data['gainers']:
+        text_content += f"- {stock['name']} ({stock['code']}): {stock['current_price']:,}원 (+{stock['change_percent']:.2f}%)\n"
+    
+    if not report_data['gainers']:
+        text_content += "- 3% 이상 상승한 종목이 없습니다.\n"
+    
+    text_content += f"\n주요 하락 종목 ({report_data['summary']['losers_count']}개):\n"
+    
+    for stock in report_data['losers']:
+        text_content += f"- {stock['name']} ({stock['code']}): {stock['current_price']:,}원 ({stock['change_percent']:.2f}%)\n"
+    
+    if not report_data['losers']:
+        text_content += "- 3% 이상 하락한 종목이 없습니다.\n"
+    
+    text_content += f"\n오늘 발생한 알림 ({report_data['summary']['alerts_count']}개):\n"
+    
+    for stock in report_data['alert_triggered']:
+        alerts_str = ', '.join(stock.get('alerts', []))
+        text_content += f"- {stock['name']} ({stock['code']}): {alerts_str}\n"
+    
+    if not report_data['alert_triggered']:
+        text_content += "- 오늘 발생한 알림이 없습니다.\n"
+    
+    text_content += f"\n발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    text_content += "\nD2 Dash 투자 모니터링 시스템에서 자동 발송된 메일입니다."
+    
+    return send_email(subject, text_content, html_content)
+
+def send_parity_alert_enhanced(stock_name: str, stock_code: str, current_price: int, 
+                               parity_percent: int, conversion_price: int) -> bool:
+    """
+    패리티 알림 전용 이메일 발송 (확장 버전)
+    
+    Args:
+        stock_name: 종목명
+        stock_code: 종목코드
+        current_price: 현재가
+        parity_percent: 패리티 퍼센트 (80, 100, 120)
+        conversion_price: 전환가격
+    
+    Returns:
+        bool: 발송 성공 여부
+    """
+    subject = f"[패리티 알림] {stock_name} - {parity_percent}% 도달"
+    
+    text_content = f"""
+📊 메자닌 패리티 알림
+
+종목명: {stock_name} ({stock_code})
+현재가: {current_price:,}원
+전환가격: {conversion_price:,}원
+패리티: {parity_percent}%
+
+패리티 {parity_percent}%에 도달했습니다!
+
+발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    # 패리티 퍼센트에 따른 배경색 설정
+    bg_color = "#fff3e0" if parity_percent < 100 else "#e8f5e8" if parity_percent == 100 else "#fff8e1"
+    border_color = "#ff9800" if parity_percent < 100 else "#4caf50" if parity_percent == 100 else "#ffc107"
+    
+    html_content = f"""
+<html>
+<body>
+    <h2>📊 메자닌 패리티 알림</h2>
+    <div style="background-color:{bg_color};padding:15px;border-radius:8px;border-left:4px solid {border_color};margin:10px 0;">
+        <h3 style="margin:0 0 10px 0;">패리티 {parity_percent}% 도달!</h3>
+        <p style="margin:0;font-size:16px;"><strong>{stock_name} ({stock_code})</strong></p>
+    </div>
+    
+    <table border="1" style="border-collapse:collapse; width:100%; margin:15px 0;">
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>현재가</strong></td>
+            <td style="padding:8px;">{current_price:,}원</td>
+        </tr>
+        <tr>
+            <td style="padding:8px;"><strong>전환가격</strong></td>
+            <td style="padding:8px;">{conversion_price:,}원</td>
+        </tr>
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>패리티</strong></td>
+            <td style="padding:8px;color:{border_color};font-weight:bold;">{parity_percent}%</td>
+        </tr>
+    </table>
+    
+    <div style="background-color:#e3f2fd;padding:10px;border-radius:4px;">
+        <strong>💡 패리티란?</strong> 현재 주가를 전환가격으로 나눈 비율로, 전환 시점의 수익성을 나타냅니다.
+    </div>
+    
+    <br>
+    <small>발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small>
+</body>
+</html>
+"""
+    
+    return send_email(subject, text_content, html_content)
+
+def send_volatility_alert(stock_name: str, stock_code: str, current_price: int, 
+                         change_percent: float, alert_type: str, threshold: float) -> bool:
+    """
+    급등급락 알림 전용 이메일 발송
+    
+    Args:
+        stock_name: 종목명
+        stock_code: 종목코드
+        current_price: 현재가
+        change_percent: 변동률
+        alert_type: 알림 타입 (surge/drop)
+        threshold: 임계값
+    
+    Returns:
+        bool: 발송 성공 여부
+    """
+    is_surge = alert_type == "surge"
+    emoji = "🚀" if is_surge else "📉"
+    direction = "급등" if is_surge else "급락"
+    color = "#4caf50" if is_surge else "#f44336"
+    
+    subject = f"[{direction} 알림] {stock_name} - {change_percent:+.2f}%"
+    
+    text_content = f"""
+{emoji} 일일 {direction} 알림
+
+종목명: {stock_name} ({stock_code})
+현재가: {current_price:,}원
+변동률: {change_percent:+.2f}%
+임계값: {threshold:+.1f}%
+
+{direction} 임계값 {threshold:+.1f}%를 {'돌파' if is_surge else '하회'}했습니다!
+
+발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    html_content = f"""
+<html>
+<body>
+    <h2>{emoji} 일일 {direction} 알림</h2>
+    <div style="background-color:{'#e8f5e8' if is_surge else '#ffebee'};padding:15px;border-radius:8px;border-left:4px solid {color};margin:10px 0;">
+        <h3 style="margin:0 0 10px 0;color:{color};">{direction} 임계값 {'돌파' if is_surge else '하회'}!</h3>
+        <p style="margin:0;font-size:16px;"><strong>{stock_name} ({stock_code})</strong></p>
+    </div>
+    
+    <table border="1" style="border-collapse:collapse; width:100%; margin:15px 0;">
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>현재가</strong></td>
+            <td style="padding:8px;">{current_price:,}원</td>
+        </tr>
+        <tr>
+            <td style="padding:8px;"><strong>일일 변동률</strong></td>
+            <td style="padding:8px;color:{color};font-weight:bold;font-size:18px;">{change_percent:+.2f}%</td>
+        </tr>
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>알림 임계값</strong></td>
+            <td style="padding:8px;">{threshold:+.1f}%</td>
+        </tr>
+    </table>
+    
+    <div style="background-color:#fff3e0;padding:10px;border-radius:4px;">
+        <strong>⚠️ 주의사항:</strong> 급격한 가격 변동이 발생했습니다. 시장 상황을 면밀히 모니터링하시기 바랍니다.
+    </div>
+    
+    <br>
+    <small>발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small>
+</body>
+</html>
+"""
+    
+    return send_email(subject, text_content, html_content)
+
+def send_target_stop_alert_enhanced(stock_name: str, stock_code: str, current_price: int, 
+                                   target_price: int, alert_type: str, acquisition_price: int = 0) -> bool:
+    """
+    목표가/손절가 알림 전용 이메일 발송 (확장 버전)
+    
+    Args:
+        stock_name: 종목명
+        stock_code: 종목코드
+        current_price: 현재가
+        target_price: 목표가/손절가
+        alert_type: 알림 타입 (target_price/stop_loss)
+        acquisition_price: 취득가 (선택)
+    
+    Returns:
+        bool: 발송 성공 여부
+    """
+    is_target = alert_type == "target_price"
+    emoji = "🎯" if is_target else "🛑"
+    title = "목표가 달성" if is_target else "손절가 도달"
+    color = "#4caf50" if is_target else "#f44336"
+    
+    subject = f"[{title}] {stock_name} - {target_price:,}원"
+    
+    # 수익률 계산 (취득가가 있는 경우)
+    profit_rate = 0
+    if acquisition_price > 0:
+        profit_rate = ((current_price - acquisition_price) / acquisition_price) * 100
+    
+    text_content = f"""
+{emoji} {title} 알림
+
+종목명: {stock_name} ({stock_code})
+현재가: {current_price:,}원
+{'목표가' if is_target else '손절가'}: {target_price:,}원
+"""
+    
+    if acquisition_price > 0:
+        text_content += f"취득가: {acquisition_price:,}원\n수익률: {profit_rate:+.2f}%\n"
+    
+    text_content += f"""
+{'목표가에 도달했습니다!' if is_target else '손절가에 도달했습니다.'}
+
+발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    html_content = f"""
+<html>
+<body>
+    <h2>{emoji} {title} 알림</h2>
+    <div style="background-color:{'#e8f5e8' if is_target else '#ffebee'};padding:15px;border-radius:8px;border-left:4px solid {color};margin:10px 0;">
+        <h3 style="margin:0 0 10px 0;color:{color};">{'🎉 목표가 달성!' if is_target else '⚠️ 손절가 도달'}</h3>
+        <p style="margin:0;font-size:16px;"><strong>{stock_name} ({stock_code})</strong></p>
+    </div>
+    
+    <table border="1" style="border-collapse:collapse; width:100%; margin:15px 0;">
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>현재가</strong></td>
+            <td style="padding:8px;">{current_price:,}원</td>
+        </tr>
+        <tr>
+            <td style="padding:8px;"><strong>{'목표가' if is_target else '손절가'}</strong></td>
+            <td style="padding:8px;color:{color};font-weight:bold;">{target_price:,}원</td>
+        </tr>
+"""
+    
+    if acquisition_price > 0:
+        profit_color = "#4caf50" if profit_rate >= 0 else "#f44336"
+        html_content += f"""
+        <tr style="background-color:#f5f5f5;">
+            <td style="padding:8px;"><strong>취득가</strong></td>
+            <td style="padding:8px;">{acquisition_price:,}원</td>
+        </tr>
+        <tr>
+            <td style="padding:8px;"><strong>수익률</strong></td>
+            <td style="padding:8px;color:{profit_color};font-weight:bold;font-size:18px;">{profit_rate:+.2f}%</td>
+        </tr>
+"""
+    
+    html_content += f"""
+    </table>
+    
+    <div style="background-color:{'#e3f2fd' if is_target else '#fff3e0'};padding:10px;border-radius:4px;">
+        <strong>{'💡 투자 의사결정' if is_target else '⚠️ 리스크 관리'}:</strong> 
+        {'목표가 달성으로 수익 실현을 고려해보세요.' if is_target else '손절가 도달로 리스크 관리가 필요합니다.'}
+    </div>
+    
+    <br>
+    <small>발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small>
+</body>
+</html>
+"""
+    
+    return send_email(subject, text_content, html_content)
+
+def send_test_email(subject: str = None, message: str = None) -> bool:
+    """
+    테스트 이메일 발송
+    
+    Args:
+        subject: 이메일 제목 (선택사항)
+        message: 이메일 내용 (선택사항)
+    
+    Returns:
+        bool: 발송 성공 여부
+    """
+    if not subject:
+        subject = "[D2 Dash] 이메일 테스트"
+    
+    if not message:
+        message = "D2 Dash 투자 모니터링 시스템 이메일 테스트입니다."
+    
+    text_content = f"""
+{message}
+
+발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+이 메일은 테스트 목적으로 발송되었습니다.
+"""
+    
+    html_content = f"""
+<html>
+<body>
+    <h2>✅ 이메일 테스트</h2>
+    <p>{message}</p>
+    <br>
+    <div style="background-color:#e8f5e8;padding:10px;border-radius:4px;border-left:4px solid #4CAF50;">
+        <strong>✓ 이메일 시스템이 정상적으로 작동하고 있습니다.</strong>
+    </div>
+    <br>
+    <small>발송 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small>
+    <br>
+    <small>이 메일은 테스트 목적으로 발송되었습니다.</small>
+</body>
+</html>
+"""
+    
+    return send_email(subject, text_content, html_content)

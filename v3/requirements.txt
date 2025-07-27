@@ -1,4 +1,6 @@
 Flask==2.3.3
+Flask-Session==0.5.0
+Flask-CORS==4.0.0
 pykrx==1.0.51
 requests==2.31.0
 beautifulsoup4==4.12.2
@@ -6,3 +8,4 @@ sendgrid==6.10.0
 filelock==3.12.4
 python-dotenv==1.0.0
 schedule==1.2.0
+bcrypt==4.0.1

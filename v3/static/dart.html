@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DART 공시 관리 - D2 Dash</title>
+    <title>공시 모니터링 - D2 Dash</title>
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -16,11 +16,215 @@
         }
         
         
-        .dart-grid {
+        /* 2x2 DART 그리드 컨테이너 */
+        .dart-grid-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            grid-template-rows: 1fr auto;
+            gap: 1.5rem;
             margin-bottom: 2rem;
+            height: 600px;
+        }
+        
+        /* 개별 패널 스타일 */
+        .companies-panel,
+        .keywords-panel {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .logs-panel {
+            grid-column: 1 / -1;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+            overflow: hidden;
+        }
+        
+        /* 패널 헤더 */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        
+        .panel-header h3 i {
+            margin-right: 0.5rem;
+            color: #1976d2;
+        }
+        
+        /* 패널 콘텐츠 */
+        .panel-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        /* 추가 버튼 */
+        .add-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .add-btn:hover {
+            background: #218838;
+        }
+        
+        .add-btn i {
+            margin-right: 0.25rem;
+        }
+        
+        /* 아이템 리스트 */
+        .items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        /* 기업/키워드 아이템 */
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        
+        .item:hover {
+            background: #e9ecef;
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-code {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .item-name {
+            color: #666;
+            font-size: 0.875rem;
+        }
+        
+        .item-keyword {
+            font-weight: 500;
+            color: #1976d2;
+        }
+        
+        /* 삭제 버튼 */
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .remove-btn:hover {
+            background: #c82333;
+        }
+        
+        /* 로그 컨테이너 */
+        .logs-container {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            padding: 1rem;
+            overflow-y: auto;
+            height: 100%;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.25rem;
+            white-space: pre-wrap;
+        }
+        
+        .log-entry.error {
+            color: #ff4444;
+        }
+        
+        .log-entry.warning {
+            color: #ffaa00;
+        }
+        
+        .log-entry.info {
+            color: #00ff00;
+        }
+        
+        .log-entry.debug {
+            color: #888;
+        }
+        
+        /* 로그 컨트롤 */
+        .log-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .log-controls select {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        
+        /* 컨트롤 그리드 */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .control-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .control-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        .control-card p {
+            margin: 0.25rem 0;
+            font-size: 0.875rem;
         }
         
         .company-card {
@@ -100,9 +304,101 @@
         }
         
         @media (max-width: 768px) {
-            .dart-grid {
+            .dart-grid-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+                height: auto;
+            }
+            
+            .logs-panel {
+                grid-column: 1;
+                height: 300px;
+            }
+            
+            .control-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .panel-header {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+            
+            .log-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+        }
+        
+        /* 모니터링 종목 스타일 */
+        .monitored-stocks-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        
+        .stock-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: box-shadow 0.3s;
+        }
+        
+        .stock-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stock-name {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stock-code {
+            color: #666;
+            font-size: 0.875rem;
+        }
+        
+        .stock-price {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        
+        .price-positive {
+            color: #d32f2f;
+        }
+        
+        .price-negative {
+            color: #1976d2;
+        }
+        
+        .price-neutral {
+            color: #757575;
+        }
+        
+        .company-card .delete-btn,
+        .keyword-chip .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-left: 0.5rem;
+        }
+        
+        .company-card .delete-btn:hover,
+        .keyword-chip .delete-btn:hover {
+            background: #c82333;
         }
     </style>
 </head>
@@ -113,7 +409,7 @@
             <div class="header-content">
                 <div class="logo">
                     <i class="fas fa-file-alt"></i>
-                    <h1>DART 공시 관리</h1>
+                    <h1>공시 모니터링</h1>
                 </div>
                 <div class="system-status">
                     <div class="status-item">
@@ -137,7 +433,7 @@
                 </a>
                 <a href="/dart" class="nav-item active">
                     <i class="fas fa-file-alt"></i>
-                    <span>DART 공시 관리</span>
+                    <span>공시 모니터링</span>
                 </a>
             </div>
         </div>
@@ -165,101 +461,100 @@
             </div>
         </div>
 
-        <!-- 메인 컨텐츠 그리드 -->
-        <div class="dart-grid">
-            <!-- 왼쪽: 관심 기업 관리 -->
-            <section class="section">
-                <div class="section-header">
-                    <h2>
+        <!-- 메인 DART 관리 그리드 (2x2 레이아웃) -->
+        <div class="dart-grid-container">
+            <!-- 왼쪽 상단: 관심 기업 관리 -->
+            <div class="companies-panel">
+                <div class="panel-header">
+                    <h3>
                         <i class="fas fa-building"></i>
-                        관심 기업 관리
-                    </h2>
-                    <div class="section-controls">
-                        <button id="refresh-companies" class="btn btn-primary">
-                            <i class="fas fa-sync"></i> 새로고침
-                        </button>
+                        관심 종목
+                    </h3>
+                    <button id="add-company" class="add-btn">
+                        <i class="fas fa-plus"></i> 추가
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div id="companies-list" class="items-list">
+                        <!-- JavaScript로 동적 생성 -->
                     </div>
                 </div>
+            </div>
 
-                <div id="companies-list" class="companies-container">
-                    <!-- JavaScript로 동적 생성 -->
-                </div>
-            </section>
-
-            <!-- 오른쪽: 키워드 관리 -->
-            <section class="section">
-                <div class="section-header">
-                    <h2>
+            <!-- 오른쪽 상단: 키워드 관리 -->
+            <div class="keywords-panel">
+                <div class="panel-header">
+                    <h3>
                         <i class="fas fa-tags"></i>
-                        모니터링 키워드
-                    </h2>
-                    <div class="section-controls">
-                        <button id="refresh-keywords" class="btn btn-primary">
+                        보고서명 키워드
+                    </h3>
+                    <button id="add-keyword" class="add-btn">
+                        <i class="fas fa-plus"></i> 추가
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div id="keywords-list" class="items-list">
+                        <!-- JavaScript로 동적 생성 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 전체: 실시간 로그 -->
+            <div class="logs-panel">
+                <div class="panel-header">
+                    <h3>
+                        <i class="fas fa-list-alt"></i>
+                        실시간 로그
+                    </h3>
+                    <div class="log-controls">
+                        <select id="log-hours" class="form-control">
+                            <option value="1">최근 1시간</option>
+                            <option value="6">최근 6시간</option>
+                            <option value="24" selected>최근 24시간</option>
+                            <option value="72">최근 3일</option>
+                        </select>
+                        <button id="refresh-logs" class="btn btn-sm btn-primary">
                             <i class="fas fa-sync"></i> 새로고침
                         </button>
                     </div>
                 </div>
-
-                <div class="keywords-container">
-                    <h3>주요 키워드</h3>
-                    <div id="keywords-list" class="keywords-list">
-                        <!-- JavaScript로 동적 생성 -->
-                    </div>
-
-                    <h3 style="margin-top: 2rem;">중요 섹션</h3>
-                    <div id="sections-list" class="keywords-list">
+                <div class="panel-content">
+                    <div id="dart-logs" class="logs-container">
                         <!-- JavaScript로 동적 생성 -->
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
 
-        <!-- 최근 공시 목록 -->
-        <section class="section">
-            <div class="section-header">
-                <h2>
-                    <i class="fas fa-list"></i>
-                    최근 공시 목록
-                </h2>
-                <div class="section-controls">
-                    <button id="manual-check" class="btn btn-success">
-                        <i class="fas fa-search"></i> 수동 확인
-                    </button>
-                    <button id="refresh-disclosures" class="btn btn-primary">
-                        <i class="fas fa-sync"></i> 새로고침
-                    </button>
-                </div>
-            </div>
-
-            <!-- 필터 옵션 -->
-            <div class="filters" style="margin-bottom: 1rem;">
-                <select id="company-filter" class="form-control" style="width: 200px; display: inline-block;">
-                    <option value="">전체 기업</option>
-                </select>
-                <input type="date" id="date-filter" class="form-control" style="width: 200px; display: inline-block; margin-left: 1rem;">
-                <span style="margin-left: 1rem; color: #666;">최대 50건</span>
-            </div>
-
-            <div id="disclosures-list" class="disclosures-container">
-                <!-- JavaScript로 동적 생성 -->
-            </div>
-        </section>
-
-        <!-- 시스템 정보 -->
+        <!-- 추가 컨트롤 섹션 -->
         <section class="section">
             <div class="section-header">
                 <h2>
                     <i class="fas fa-cog"></i>
-                    시스템 정보
+                    시스템 제어
                 </h2>
+                <div class="section-controls">
+                    <button id="manual-check" class="btn btn-success">
+                        <i class="fas fa-search"></i> 수동 공시 확인
+                    </button>
+                    <button id="refresh-all" class="btn btn-primary">
+                        <i class="fas fa-sync"></i> 전체 새로고침
+                    </button>
+                </div>
             </div>
 
-            <div style="background: #f5f5f5; padding: 1rem; border-radius: 8px;">
-                <div id="dart-config-info">
-                    <p><strong>DART API 키:</strong> <span id="api-key-display">d63d0*****</span></p>
+            <div class="control-grid">
+                <div class="control-card">
+                    <h4>DART API 설정</h4>
+                    <p><strong>API 키:</strong> <span id="api-key-display">d63d0*****</span></p>
                     <p><strong>모니터링 간격:</strong> <span id="check-interval">30분</span></p>
                     <p><strong>마지막 확인:</strong> <span id="last-check-time">-</span></p>
-                    <p><strong>설정 파일:</strong> <code>C:\2dept\v3\modules\config.py</code></p>
+                </div>
+                <div class="control-card">
+                    <h4>통계 정보</h4>
+                    <p><strong>오늘 알림:</strong> <span id="alerts-today">0건</span></p>
+                    <p><strong>시스템 상태:</strong> <span id="system-status">정상</span></p>
+                    <p><strong>설정 파일:</strong> <code>config.py</code></p>
                 </div>
             </div>
         </section>
