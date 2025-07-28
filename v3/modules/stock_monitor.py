@@ -71,6 +71,11 @@ class StockMonitor:
         self.monitoring_thread = None
         self.monitor_interval = 10  # 10초 간격
         self.last_daily_report_date = None
+        
+        # 주기적 데이터 저장 관련 변수
+        self.last_save_time = datetime.now()
+        self.save_interval = 60  # 60초 간격으로 데이터 저장
+        self.save_counter = 0
     
     def load_monitoring_stocks(self) -> Dict:
         """모니터링 주식 데이터 로드 (확장된 스키마 지원)"""
@@ -249,6 +254,38 @@ class StockMonitor:
             
         except Exception as e:
             logger.error(f"모니터링 주식 데이터 저장 실패: {e}")
+    
+    def save_monitoring_stocks_with_metadata(self, data: Dict):
+        """메타데이터를 포함한 모니터링 주식 데이터 저장"""
+        try:
+            # set을 list로 변환하여 JSON 직렬화 가능하게 만듦
+            serializable_data = {}
+            for code, info in data.items():
+                serializable_info = info.copy()
+                if 'triggered_alerts' in serializable_info and isinstance(serializable_info['triggered_alerts'], set):
+                    serializable_info['triggered_alerts'] = list(serializable_info['triggered_alerts'])
+                serializable_data[code] = serializable_info
+            
+            # 메타데이터 추가
+            output_data = {
+                '_metadata': {
+                    'last_updated': datetime.now().isoformat(),
+                    'update_count': getattr(self, 'save_counter', 0),
+                    'total_stocks': len(data),
+                    'enabled_stocks': len([code for code, info in data.items() if info.get('enabled', True)]),
+                    'data_version': '1.0'
+                },
+                'stocks': serializable_data
+            }
+            
+            with FileLock(self.lock_file):
+                with open(self.monitoring_stocks_file, 'w', encoding='utf-8') as f:
+                    json.dump(output_data, f, ensure_ascii=False, indent=2)
+                    
+            logger.debug(f"메타데이터 포함 모니터링 주식 데이터 저장: {len(data)}개 종목")
+            
+        except Exception as e:
+            logger.error(f"메타데이터 포함 모니터링 주식 데이터 저장 실패: {e}")
     
     def get_stock_price_pykrx(self, stock_code: str) -> Tuple[Optional[int], float, Optional[str]]:
         """PyKrx를 사용한 주가 정보 조회"""
@@ -620,7 +657,8 @@ class StockMonitor:
                   category: str = None,
                   acquisition_price: float = 0,
                   alert_settings: Dict = None,
-                  memo: str = '') -> bool:
+                  memo: str = '',
+                  conversion_price: float = 0) -> bool:
         """모니터링 종목 추가 (확장된 스키마 지원)"""
         try:
             if stock_name is None:
@@ -644,6 +682,7 @@ class StockMonitor:
                 'acquisition_price': float(acquisition_price),
                 'alert_settings': validated_alert_settings,
                 'memo': str(memo),
+                'conversion_price': float(conversion_price),
                 'enabled': True,
                 'current_price': 0.0,
                 'change_percent': 0.0,
@@ -822,6 +861,14 @@ class StockMonitor:
                         self._send_daily_report()
                 else:
                     logger.debug("시장 폐장 중 - 대기")
+                
+                # 주기적 데이터 저장 체크 (60초마다)
+                if (current_time - self.last_save_time).total_seconds() >= self.save_interval:
+                    logger.debug("주기적 데이터 저장 실행")
+                    self.save_monitoring_stocks_with_metadata(self.monitoring_stocks)
+                    self.last_save_time = current_time
+                    self.save_counter += 1
+                    logger.info(f"데이터 주기 저장 완료: {self.save_counter}번째")
                 
                 # 10초 대기
                 for _ in range(self.monitor_interval):
@@ -1375,9 +1422,10 @@ def add_monitoring_stock(stock_code: str,
                         category: str = None,
                         acquisition_price: float = 0,
                         alert_settings: Dict = None,
-                        memo: str = '') -> bool:
+                        memo: str = '',
+                        conversion_price: float = 0) -> bool:
     """모니터링 종목 추가 (편의 함수)"""
-    return stock_monitor.add_stock(stock_code, stock_name, target_price, stop_loss, category, acquisition_price, alert_settings, memo)
+    return stock_monitor.add_stock(stock_code, stock_name, target_price, stop_loss, category, acquisition_price, alert_settings, memo, conversion_price)
 
 def update_monitoring_stock(stock_code: str, **kwargs) -> bool:
     """모니터링 종목 정보 업데이트 (편의 함수)"""

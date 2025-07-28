@@ -853,9 +853,55 @@ def get_status():
 @performance_monitor('주식 목록 조회')
 @api_request_logger
 def get_stocks():
-    """모니터링 주식 목록 조회"""
+    """모니터링 주식 목록 조회 (메타데이터 포함)"""
     try:
-        stocks = get_monitoring_stocks()
+        # 강제 새로고침 파라미터 확인
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        
+        # 메타데이터와 함께 주식 데이터 로드
+        try:
+            with open(os.path.join(DATA_DIR, 'monitoring_stocks.json'), 'r', encoding='utf-8') as f:
+                file_data = json.load(f)
+            
+            # 새로운 형식(메타데이터 포함) 확인
+            if '_metadata' in file_data and 'stocks' in file_data:
+                metadata = file_data['_metadata']
+                stocks = file_data['stocks']
+            else:
+                # 기존 형식인 경우 기본 메타데이터 생성
+                stocks = file_data
+                metadata = {
+                    'last_updated': datetime.now().isoformat(),
+                    'update_count': 0,
+                    'total_stocks': len(stocks),
+                    'enabled_stocks': len([code for code, info in stocks.items() if info.get('enabled', True)]),
+                    'data_version': '1.0'
+                }
+        except (FileNotFoundError, json.JSONDecodeError):
+            # 파일이 없거나 잘못된 경우 빈 데이터 반환
+            stocks = {}
+            metadata = {
+                'last_updated': datetime.now().isoformat(),
+                'update_count': 0,
+                'total_stocks': 0,
+                'enabled_stocks': 0,
+                'data_version': '1.0'
+            }
+        
+        # 강제 새로고침이 요청된 경우 주가 업데이트 수행
+        if force_refresh:
+            try:
+                update_all_stocks()
+                # 업데이트 후 데이터 다시 로드
+                with open(os.path.join(DATA_DIR, 'monitoring_stocks.json'), 'r', encoding='utf-8') as f:
+                    file_data = json.load(f)
+                if '_metadata' in file_data and 'stocks' in file_data:
+                    metadata = file_data['_metadata']
+                    stocks = file_data['stocks']
+                else:
+                    stocks = file_data
+            except Exception as e:
+                logger.warning(f"강제 새로고침 실패: {e}")
         
         # JSON 직렬화를 위해 set을 list로 변환
         serializable_stocks = {}
@@ -866,6 +912,7 @@ def get_stocks():
             serializable_stocks[code] = serializable_info
         
         return create_success_response({
+            'metadata': metadata,
             'stocks': serializable_stocks,
             'count': len(serializable_stocks)
         })
@@ -1179,6 +1226,7 @@ def add_stock():
         
         # 확장된 필드
         acquisition_price = data.get('acquisition_price', 0)
+        conversion_price = data.get('conversion_price', 0)  # 메자닌 전환가
         memo = data.get('memo', '').strip()
         alert_settings = data.get('alert_settings', {})
         
@@ -1201,6 +1249,15 @@ def add_stock():
         # 취득가 검증 (선택사항)
         if acquisition_price and acquisition_price < 0:
             return create_error_response("취득가는 0 이상이어야 합니다", 'INVALID_ACQUISITION_PRICE', 400)
+        # 멤자닌 전환가 검증
+        if category == '멤자닌':
+            if not conversion_price or conversion_price <= 0:
+                return create_error_response('멤자닌 종목은 전환가를 입력해주세요', 'INVALID_CONVERSION_PRICE', 400)
+            
+            
+            # 소수점 둘째자리까지만 허용
+            if round(conversion_price, 2) != conversion_price:
+                return create_error_response('전환가는 소수점 둘째자리까지만 입력 가능합니다', 'INVALID_CONVERSION_PRICE', 400)
         
         # 종목 추가 (stock_monitor 모듈 사용 - 확장된 파라미터)
         from modules.stock_monitor import add_monitoring_stock
@@ -1213,7 +1270,8 @@ def add_stock():
             category=category,
             acquisition_price=float(acquisition_price),
             alert_settings=alert_settings,
-            memo=memo
+            memo=memo,
+            conversion_price=float(conversion_price) if conversion_price else 0
         )
         
         if success:

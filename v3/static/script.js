@@ -1302,19 +1302,23 @@ function setupEventListeners() {
         openAddModal('company');
     });
 
-    // 종목 카테고리 선택 시 메자닌 필드 표시/숨김
-    document.getElementById('stock-category')?.addEventListener('change', (e) => {
-        const mezzanineFields = document.getElementById('mezzanine-fields');
-        const conversionPriceInput = document.getElementById('conversion-price');
-        
-        if (e.target.value === '메자닌') {
-            mezzanineFields.style.display = 'block';
-            conversionPriceInput.required = true;
-        } else {
-            mezzanineFields.style.display = 'none';
-            conversionPriceInput.required = false;
-            conversionPriceInput.value = '';
-        }
+    // 종목 카테고리 라디오 버튼 선택 시 메자닌 필드 표시/숨김
+    document.querySelectorAll('input[name="stock-category-radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const conversionPriceGroup = document.getElementById('conversion-price-group');
+            const conversionPriceInput = document.getElementById('conversion-price');
+            
+            if (e.target.value === '메자닌') {
+                conversionPriceGroup.style.display = 'block';
+                conversionPriceInput.required = true;
+                console.log('메자닌 카테고리 선택: 전환가 필드 표시');
+            } else {
+                conversionPriceGroup.style.display = 'none';
+                conversionPriceInput.required = false;
+                conversionPriceInput.value = '';
+                console.log(`${e.target.value} 카테고리 선택: 전환가 필드 숨김`);
+            }
+        });
     });
     
     // 추가 모달 이벤트
@@ -1763,6 +1767,10 @@ async function handleAddStock() {
     const targetPrice = parseInt(document.getElementById('target-price').value) || 0;
     const stopLoss = parseInt(document.getElementById('stop-loss').value) || 0;
     
+    // 메자닌 전환가 수집
+    const conversionPrice = category === '메자닌' ? 
+        parseFloat(document.getElementById('conversion-price').value) || 0 : 0;
+    
     // 알림 설정
     const priceAlertEnabled = document.getElementById('price-alert-enabled').checked;
     const volatilityAlertEnabled = document.getElementById('volatility-alert-enabled').checked;
@@ -1783,6 +1791,18 @@ async function handleAddStock() {
     
     if (!category) {
         throw new Error('구분을 선택해주세요.');
+    }
+    
+    // 메자닌 전환가 유효성 검사
+    if (category === '메자닌') {
+        if (!conversionPrice || conversionPrice <= 0) {
+            throw new Error('메자닌 종목은 전환가를 입력해주세요.');
+        }
+        
+        // 소수점 둘째자리까지만 허용
+        if (Number(conversionPrice.toFixed(2)) !== conversionPrice) {
+            throw new Error('전환가는 소수점 둘째자리까지만 입력 가능합니다.');
+        }
     }
     
     // 가격 유효성 검사 (선택사항)
@@ -1810,6 +1830,7 @@ async function handleAddStock() {
         acquisition_price: acquisitionPrice,
         target_price: targetPrice,
         stop_loss: stopLoss,
+        conversion_price: conversionPrice,
         alert_settings: {
             price_alert_enabled: priceAlertEnabled,
             volatility_alert_enabled: volatilityAlertEnabled,
@@ -1852,6 +1873,15 @@ function resetAddStockForm() {
     const defaultRadio = document.querySelector('input[name="stock-category-radio"][value="매수"]');
     if (defaultRadio) {
         defaultRadio.checked = true;
+    }
+    
+    // 메자닌 전환가 필드 초기화 및 숨김
+    const conversionPriceGroup = document.getElementById('conversion-price-group');
+    const conversionPriceInput = document.getElementById('conversion-price');
+    if (conversionPriceGroup && conversionPriceInput) {
+        conversionPriceGroup.style.display = 'none';
+        conversionPriceInput.value = '';
+        conversionPriceInput.required = false;
     }
     
     // 체크박스 초기화 (활성화가 기본값)
