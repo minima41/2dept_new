@@ -276,7 +276,7 @@ const api = {
     // 일일 내역 조회
     async getDailyHistory() {
         try {
-            const response = await fetch(`${API_BASE}/api/v1/daily-history`);
+            const response = await fetch(`${API_BASE}/api/v1/stocks/daily-history`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }

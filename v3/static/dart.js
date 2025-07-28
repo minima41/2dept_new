@@ -4,7 +4,6 @@
  */
 
 // 전역 변수
-const API_BASE = '';
 let refreshInterval;
 
 // DOM 요소 참조
@@ -88,7 +87,7 @@ const errorHandler = {
 // API 호출 함수들
 const api = {
     async getStatus() {
-        const response = await fetch(`${API_BASE}/api/v1/status`);
+        const response = await fetch(`${window.API_BASE}/api/v1/status`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -96,7 +95,7 @@ const api = {
     },
     
     async getCompanies() {
-        const response = await fetch(`${API_BASE}/api/v1/dart/companies`);
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/companies`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -104,7 +103,7 @@ const api = {
     },
     
     async getKeywords() {
-        const response = await fetch(`${API_BASE}/api/v1/dart/keywords`);
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/keywords`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -117,7 +116,7 @@ const api = {
         if (filters.company) params.append('company', filters.company);
         if (filters.limit) params.append('limit', filters.limit);
         
-        const response = await fetch(`${API_BASE}/api/v1/dart/disclosures?${params}`);
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/disclosures?${params}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -125,7 +124,7 @@ const api = {
     },
     
     async manualCheck() {
-        const response = await fetch(`${API_BASE}/api/v1/dart/check`, {
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/check`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -138,7 +137,7 @@ const api = {
     },
     
     async getProcessedIds() {
-        const response = await fetch(`${API_BASE}/api/v1/dart/processed-ids`);
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/processed-ids`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -146,7 +145,7 @@ const api = {
     },
     
     async getMonitoredStocks() {
-        const response = await fetch(`${API_BASE}/api/v1/stocks`);
+        const response = await fetch(`${window.API_BASE}/api/v1/stocks`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -154,7 +153,7 @@ const api = {
     },
     
     async addCompany(companyCode, companyName) {
-        const response = await fetch(`${API_BASE}/api/v1/dart/companies`, {
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/companies`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -171,7 +170,7 @@ const api = {
     },
     
     async deleteCompany(companyCode) {
-        const response = await fetch(`${API_BASE}/api/v1/dart/companies/${companyCode}`, {
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/companies/${companyCode}`, {
             method: 'DELETE'
         });
         if (!response.ok) {
@@ -181,7 +180,7 @@ const api = {
     },
     
     async addKeyword(keyword) {
-        const response = await fetch(`${API_BASE}/api/v1/dart/keywords/add`, {
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/keywords/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -197,7 +196,7 @@ const api = {
     },
     
     async deleteKeyword(keyword) {
-        const response = await fetch(`${API_BASE}/api/v1/dart/keywords/${encodeURIComponent(keyword)}`, {
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/keywords/${encodeURIComponent(keyword)}`, {
             method: 'DELETE'
         });
         if (!response.ok) {
@@ -207,7 +206,7 @@ const api = {
     },
     
     async getDartLogs(hours = 24) {
-        const response = await fetch(`${API_BASE}/api/v1/dart/realtime-logs?hours=${hours}`);
+        const response = await fetch(`${window.API_BASE}/api/v1/dart/realtime-logs?hours=${hours}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
