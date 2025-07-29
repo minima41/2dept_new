@@ -277,6 +277,65 @@ def send_stock_alert(stock_name: str, current_price: int, change_rate: float, al
     
     return send_email(subject, text_content, html_content)
 
+def send_stock_alert_with_time_limit(stock_code: str, stock_name: str, current_price: int, change_rate: float, alert_type: str, message: str) -> bool:
+    """
+    시간 제한 및 중복 방지 기능이 포함된 주식 기가 알림 이메일 발송
+    
+    Args:
+        stock_code (str): 종목 코드 (6자리)
+        stock_name (str): 종목명
+        current_price (int): 현재가
+        change_rate (float): 변동률
+        alert_type (str): 알림 타입 (target_price, stop_loss, surge, drop)
+        message (str): 알림 메시지
+        
+    Returns:
+        bool: 발송 성공 여부 (시간 제한으로 인한 실패 포함)
+    """
+    from .logger_utils import get_logger
+    
+    logger = get_logger('email')
+    
+    # StockMonitor 인스턴스를 가져와서 시간 체크
+    try:
+        from .stock_monitor import stock_monitor
+        
+        # 시간 제한 및 중복 방지 체크
+        if not stock_monitor.can_send_stock_alert(stock_code, alert_type):
+            return False
+            
+        # 실제 알림 발송
+        result = send_stock_alert(stock_name, current_price, change_rate, alert_type, message)
+        
+        # 발송 성공 시 마킹
+        if result:
+            stock_monitor.mark_alert_sent(stock_code, alert_type)
+            logger.info(f"주식 알림 발송 성공: {stock_name}({stock_code}) - {alert_type}")
+        else:
+            logger.warning(f"주식 알림 발송 실패: {stock_name}({stock_code}) - {alert_type}")
+            
+        return result
+        
+    except Exception as e:
+        logger.error(f"주식 알림 발송 오류: {e}")
+        # 오류 발생 시 기존 함수로 폴백
+        return send_stock_alert(stock_name, current_price, change_rate, alert_type, message)
+
+def is_stock_market_time() -> bool:
+    """
+    주식 시장 시간대(9:00-15:30) 체크 - 독립 함수
+    
+    Returns:
+        bool: 시장 시간 내이면 True, 아니면 False
+    """
+    from datetime import datetime
+    
+    now = datetime.now()
+    market_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
+    market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    
+    return market_open <= now <= market_close
+
 # datetime import 추가
 from datetime import datetime
 

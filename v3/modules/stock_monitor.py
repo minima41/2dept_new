@@ -116,6 +116,81 @@ class StockMonitor:
             return STOCK_CATEGORIES[category_key]
         return STOCK_CATEGORIES.get(DEFAULT_STOCK_CATEGORY, '기타')
     
+    def is_market_time(self) -> bool:
+        """
+        주식 시장 시간대(9:00-15:30) 체크
+        
+        Returns:
+            bool: 시장 시간 내이면 True, 아니면 False
+        """
+        now = datetime.now()
+        market_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+        
+        return market_open <= now <= market_close
+    
+    def can_send_stock_alert(self, stock_code: str, alert_type: str) -> bool:
+        """
+        주식 알림 발송 가능 여부 체크 (시간 제한 + 중복 방지)
+        
+        Args:
+            stock_code (str): 종목 코드
+            alert_type (str): 알림 유형 (surge, drop, target, stop_loss 등)
+            
+        Returns:
+            bool: 알림 발송 가능하면 True, 아니면 False
+        """
+        # 1. 시장 시간 체크
+        if not self.is_market_time():
+            logger.debug(f"시장 시간 외로 인한 알림 제한: {stock_code}_{alert_type}")
+            return False
+            
+        # 2. 당일 중복 알림 체크
+        today = datetime.now().date()
+        alert_key = f"{stock_code}_{alert_type}_{today}"
+        
+        # 당일 발송된 알림 목록에서 확인
+        if hasattr(self, 'sent_alerts_today'):
+            if alert_key in self.sent_alerts_today:
+                logger.debug(f"당일 중복 알림 방지: {alert_key}")
+                return False
+        else:
+            # 당일 알림 추적 세트 초기화
+            self.sent_alerts_today = set()
+            
+        return True
+    
+    def mark_alert_sent(self, stock_code: str, alert_type: str):
+        """
+        알림 발송 완료 후 마킹 처리
+        
+        Args:
+            stock_code (str): 종목 코드
+            alert_type (str): 알림 유형
+        """
+        today = datetime.now().date()
+        alert_key = f"{stock_code}_{alert_type}_{today}"
+        
+        if not hasattr(self, 'sent_alerts_today'):
+            self.sent_alerts_today = set()
+            
+        self.sent_alerts_today.add(alert_key)
+        logger.info(f"알림 발송 마킹: {alert_key}")
+    
+    def reset_daily_alerts_if_needed(self):
+        """
+        새로운 날이 시작되면 당일 알림 목록 초기화
+        """
+        today = datetime.now().date()
+        
+        if not hasattr(self, 'last_alert_reset_date'):
+            self.last_alert_reset_date = today
+            self.sent_alerts_today = set()
+        elif self.last_alert_reset_date != today:
+            logger.info(f"새로운 날이 시작: {today}, 당일 알림 목록 초기화") 
+            self.sent_alerts_today = set()
+            self.last_alert_reset_date = today
+    
     def load_monitoring_stocks(self) -> Dict:
         """모니터링 주식 데이터 로드 (확장된 스키마 지원)"""
         try:
