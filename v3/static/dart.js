@@ -324,15 +324,205 @@ const utils = {
     },
     
     showAlert(message, type = 'info') {
-        // 간단한 알림 표시 (나중에 toast 라이브러리로 교체 가능)
+        // 향상된 Toast 알림 시스템
         console.log(`[${type.toUpperCase()}] ${message}`);
-        alert(message);
+        
+        // 기존 toast 제거
+        const existingToasts = document.querySelectorAll('.dart-toast');
+        existingToasts.forEach(toast => toast.remove());
+        
+        // Toast 컨테이너 생성
+        const toast = document.createElement('div');
+        toast.className = `dart-toast dart-toast-${type}`;
+        
+        // 타입별 아이콘
+        const icons = {
+            'info': 'fas fa-info-circle',
+            'success': 'fas fa-check-circle', 
+            'warning': 'fas fa-exclamation-triangle',
+            'error': 'fas fa-times-circle'
+        };
+        
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="${icons[type] || icons.info}"></i>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Toast 스타일 설정
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: '10000',
+            minWidth: '300px',
+            maxWidth: '500px',
+            padding: '1rem',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: '0.875rem',
+            fontFamily: 'inherit',
+            opacity: '0',
+            transform: 'translateX(100%)',
+            transition: 'all 0.3s ease-in-out'
+        });
+        
+        // 타입별 색상
+        const colors = {
+            'info': { bg: '#e3f2fd', border: '#2196f3', text: '#1565c0' },
+            'success': { bg: '#e8f5e8', border: '#4caf50', text: '#2e7d32' },
+            'warning': { bg: '#fff3e0', border: '#ff9800', text: '#ef6c00' },
+            'error': { bg: '#ffebee', border: '#f44336', text: '#c62828' }
+        };
+        
+        const color = colors[type] || colors.info;
+        Object.assign(toast.style, {
+            backgroundColor: color.bg,
+            border: `1px solid ${color.border}`,
+            color: color.text
+        });
+        
+        // DOM에 추가
+        document.body.appendChild(toast);
+        
+        // 애니메이션 시작
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+        });
+        
+        // 자동 제거 (에러는 더 오래 표시)
+        const duration = type === 'error' ? 6000 : 4000;
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, duration);
+        
+        // 터치/마우스 이벤트로 수동 닫기
+        toast.addEventListener('click', (e) => {
+            if (e.target.closest('.toast-close')) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 200);
+            }
+        });
     },
     
-    showLoading(show = true) {
-        document.body.style.cursor = show ? 'wait' : 'default';
+    showLoading(show = true, message = '로딩 중...') {
+        // 버튼 비활성화로 중복 요청 방지
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            if (show) {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+            } else {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        });
         
-        // 로딩 상태 표시 개선
+        if (show) {
+            // 로딩 오버레이 생성
+            let loadingOverlay = document.getElementById('dart-loading-overlay');
+            
+            if (!loadingOverlay) {
+                loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'dart-loading-overlay';
+                
+                // 로딩 스타일 설정
+                Object.assign(loadingOverlay.style, {
+                    position: 'fixed',
+                    top: '0',
+                    left: '0',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    zIndex: '9999',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backdropFilter: 'blur(2px)',
+                    opacity: '0',
+                    transition: 'opacity 0.2s ease-in-out'
+                });
+                
+                // 로딩 컨텐츠
+                loadingOverlay.innerHTML = `
+                    <div class="loading-spinner">
+                        <div class="spinner-ring"></div>
+                    </div>
+                    <div class="loading-text">${message}</div>
+                `;
+                
+                // 스타일 추가
+                const style = document.createElement('style');
+                style.textContent = `
+                    .loading-spinner {
+                        position: relative;
+                        width: 50px;
+                        height: 50px;
+                        margin-bottom: 1rem;
+                    }
+                    
+                    .spinner-ring {
+                        width: 50px;
+                        height: 50px;
+                        border: 4px solid #f3f4f6;
+                        border-top: 4px solid #2196f3;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    }
+                    
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    
+                    .loading-text {
+                        font-size: 1rem;
+                        color: #666;
+                        font-weight: 500;
+                        text-align: center;
+                    }
+                `;
+                
+                document.head.appendChild(style);
+                document.body.appendChild(loadingOverlay);
+                
+                // 애니메이션 시작
+                requestAnimationFrame(() => {
+                    loadingOverlay.style.opacity = '1';
+                });
+            } else {
+                // 기존 로딩 메시지 업데이트
+                const loadingText = loadingOverlay.querySelector('.loading-text');
+                if (loadingText) {
+                    loadingText.textContent = message;
+                }
+                loadingOverlay.style.opacity = '1';
+            }
+        } else {
+            // 로딩 오버레이 제거
+            const loadingOverlay = document.getElementById('dart-loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    if (loadingOverlay.parentNode) {
+                        loadingOverlay.remove();
+                    }
+                }, 200);
+            }
+        }
+        
+        // 기존 로딩 인디케이터도 유지 (호환성)
         const loadingElements = document.querySelectorAll('.loading-indicator');
         loadingElements.forEach(el => {
             el.style.display = show ? 'block' : 'none';
@@ -532,7 +722,7 @@ function updateCompanyFilter(companies) {
 // 데이터 로드 함수들
 async function loadCompanies() {
     try {
-        utils.showLoading(true);
+        utils.showLoading(true, '관심 기업 목록 로드 중...');
         const result = await api.getCompanies();
         
         if (result && result.success) {
@@ -556,7 +746,7 @@ async function loadCompanies() {
 
 async function loadKeywords() {
     try {
-        utils.showLoading(true);
+        utils.showLoading(true, '키워드 목록 로드 중...');
         const result = await api.getKeywords();
         
         if (result && result.success) {
@@ -579,7 +769,7 @@ async function loadKeywords() {
 
 async function loadDisclosures() {
     try {
-        utils.showLoading(true);
+        utils.showLoading(true, '공시 목록 조회 중...');
         
         const filters = {
             limit: 50
@@ -648,7 +838,7 @@ async function loadProcessedIds() {
 // 모니터링 종목 로드
 async function loadMonitoredStocks() {
     try {
-        utils.showLoading(true);
+        utils.showLoading(true, '모니터링 종목 로드 중...');
         const result = await api.getMonitoredStocks();
         
         if (result && result.success) {
@@ -769,7 +959,7 @@ async function deleteKeywordHandler(keyword, type) {
 // 수동 공시 확인
 async function performManualCheck() {
     try {
-        utils.showLoading(true);
+        utils.showLoading(true, '수동 공시 확인 중...');
         elements.manualCheck.disabled = true;
         elements.manualCheck.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 확인중...';
         
