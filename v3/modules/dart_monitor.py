@@ -49,6 +49,10 @@ class DartMonitor:
         self.keywords_file = DART_KEYWORDS_FILE
         self.companies_lock = self.companies_file + '.lock'
         self.keywords_lock = self.keywords_file + '.lock'
+        
+        # 웹 연동용 DART 알림 파일 경로
+        self.dart_alerts_file = os.path.join(os.path.dirname(self.processed_ids_file), 'dart_alerts.json')
+        self.dart_alerts_lock = self.dart_alerts_file + '.lock'
     
     def validate_date_format(self, date_str: str) -> bool:
         """날짜 형식 검증 (YYYYMMDD)"""
@@ -480,30 +484,15 @@ class DartMonitor:
                 
                 logger.debug(f"DART API 요청: {company_name} ({corp_code})")
                 
-                response = requests.get(
+                # 재시도 로직이 포함된 API 요청
+                data = self.make_api_request_with_retry(
                     f"{DART_API_URL}/list.json",
-                    params=params,
-                    timeout=REQUEST_TIMEOUT
+                    params
                 )
                 
-                # HTTP 응답 상태 확인
-                if response.status_code != 200:
-                    logger.warning(f"DART API HTTP 오류: {response.status_code} - {company_name}")
-                    failed_companies.append(company_name)
-                    continue
-                
-                # JSON 파싱
-                try:
-                    data = response.json()
-                except json.JSONDecodeError as e:
-                    logger.error(f"DART API JSON 파싱 실패 ({company_name}): {e}")
-                    failed_companies.append(company_name)
-                    continue
-                
-                # API 응답 상태 확인
-                if data.get('status') != '000':
-                    error_msg = data.get('message', '알 수 없는 오류')
-                    logger.warning(f"DART API 오류 ({company_name}): {data.get('status')} - {error_msg}")
+                # API 요청 실패 시 다음 기업으로 이동
+                if data is None:
+                    logger.error(f"DART API 요청 실패: {company_name}")
                     failed_companies.append(company_name)
                     continue
                 
@@ -652,6 +641,92 @@ class DartMonitor:
         
         return matched_info
     
+    def validate_dart_api_key(self) -> bool:
+        """DART API 키 유효성 검증"""
+        try:
+            if not DART_API_KEY or DART_API_KEY.strip() == '':
+                logger.error("DART API 키가 설정되지 않았습니다")
+                return False
+            
+            if len(DART_API_KEY) != 40:  # DART API 키는 40자리
+                logger.error(f"DART API 키 길이가 올바르지 않습니다: {len(DART_API_KEY)}자리")
+                return False
+            
+            # 간단한 API 키 형식 검증 (영숫자)
+            if not DART_API_KEY.isalnum():
+                logger.error("DART API 키 형식이 올바르지 않습니다: 영숫자만 허용")
+                return False
+            
+            logger.debug("DART API 키 검증 성공")
+            return True
+            
+        except Exception as e:
+            logger.error(f"DART API 키 검증 중 오류: {e}")
+            return False
+    
+    def make_api_request_with_retry(self, url: str, params: dict, max_retries: int = 3) -> Optional[dict]:
+        """재시도 로직이 포함된 API 요청"""
+        for attempt in range(max_retries):
+            try:
+                logger.debug(f"DART API 요청 시도 {attempt + 1}/{max_retries}: {params.get('corp_code', 'Unknown')}")
+                
+                response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
+                
+                # HTTP 상태 코드 확인
+                if response.status_code != 200:
+                    logger.warning(f"HTTP 오류 {response.status_code} (시도 {attempt + 1}/{max_retries})")
+                    if attempt == max_retries - 1:  # 마지막 시도
+                        return None
+                    continue
+                
+                # JSON 파싱
+                try:
+                    data = response.json()
+                    
+                    # DART API 응답 상태 확인
+                    if data.get('status') == '000':  # 성공
+                        return data
+                    else:
+                        error_msg = data.get('message', '알 수 없는 오류')
+                        logger.warning(f"DART API 오류: {data.get('status')} - {error_msg} (시도 {attempt + 1}/{max_retries})")
+                        
+                        # 일시적 오류가 아닌 경우 재시도하지 않음
+                        if data.get('status') in ['010', '011', '012', '013']:  # 인증 관련 오류
+                            logger.error(f"API 키 인증 오류로 재시도 중단: {data.get('status')}")
+                            return None
+                        
+                        if attempt == max_retries - 1:  # 마지막 시도
+                            return None
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON 파싱 오류 (시도 {attempt + 1}/{max_retries}): {e}")
+                    if attempt == max_retries - 1:
+                        return None
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"API 요청 타임아웃 (시도 {attempt + 1}/{max_retries}): {REQUEST_TIMEOUT}초 초과")
+                if attempt == max_retries - 1:
+                    return None
+                    
+            except requests.exceptions.ConnectionError:
+                logger.warning(f"API 연결 실패 (시도 {attempt + 1}/{max_retries}): 네트워크 오류")
+                if attempt == max_retries - 1:
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"예상치 못한 API 요청 오류 (시도 {attempt + 1}/{max_retries}): {type(e).__name__} - {e}")
+                if attempt == max_retries - 1:
+                    return None
+            
+            # 재시도 전 대기 (지수 백오프)
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1초, 2초, 4초...
+                logger.debug(f"{wait_time}초 후 재시도...")
+                import time
+                time.sleep(wait_time)
+        
+        return None
+    
     def check_new_disclosures(self, target_date: Optional[str] = None) -> List[Dict]:
         """
         새로운 공시 확인 및 반환
@@ -668,6 +743,10 @@ class DartMonitor:
         logger.info(f"DART 공시 확인 시작: {target_date}")
         
         try:
+            # DART API 키 검증
+            if not self.validate_dart_api_key():
+                logger.error("DART API 키 검증 실패로 공시 확인을 중단합니다")
+                return []
             # 처리된 ID 목록 가져오기
             processed_ids = self.get_processed_ids()
             logger.debug(f"기존 처리된 공시 ID: {len(processed_ids)}개")
