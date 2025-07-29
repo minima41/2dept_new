@@ -187,7 +187,7 @@ DEFAULT_MONITORING_STOCKS = [
 STOCK_DATA_SCHEMA = {
     "code": str,            # 종목코드 (필수)
     "name": str,            # 종목명 (필수)
-    "category": str,        # 카테고리: "매수" | "기타" (기본값: "기타")
+        "category": str,        # 카테고리: "매수" | "주식" (기본값: "주식")
     "target_price": float,  # 목표가 (필수)
     "stop_loss": float,     # 손절가 (필수)
     "acquisition_price": float,  # 취득가 (선택, 수익률 계산용)
@@ -203,8 +203,13 @@ STOCK_DATA_SCHEMA = {
 }
 
 # === 주식 카테고리 정의 ===
-STOCK_CATEGORIES = ["매수", "기타"]
-DEFAULT_STOCK_CATEGORY = "기타"
+STOCK_CATEGORIES = {
+    'all': '전체',
+    'mezzanine': '메자닌', 
+    'stock': '주식',
+    'other': '기타'
+}
+DEFAULT_STOCK_CATEGORY = 'other'
 
 # === 기본 알림 설정 ===
 DEFAULT_ALERT_SETTINGS = {

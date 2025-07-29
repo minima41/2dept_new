@@ -77,6 +77,45 @@ class StockMonitor:
         self.save_interval = 60  # 60초 간격으로 데이터 저장
         self.save_counter = 0
     
+    def calculate_return_rate(self, current_price: float, acquisition_price: float) -> float:
+        """
+        취득가 대비 수익률 계산
+        
+        Args:
+            current_price (float): 현재가
+            acquisition_price (float): 취득가
+            
+        Returns:
+            float: 수익률 (백분율)
+        """
+        if acquisition_price is None or acquisition_price <= 0:
+            return 0.0
+            
+        if current_price is None or current_price <= 0:
+            return 0.0
+            
+        try:
+            return_rate = ((current_price - acquisition_price) / acquisition_price) * 100
+            return round(return_rate, 2)
+        except (TypeError, ZeroDivisionError):
+            return 0.0
+    
+    def get_stock_category_display(self, category_key: str) -> str:
+        """
+        주식 카테고리 표시명 반환
+        
+        Args:
+            category_key (str): 카테고리 키
+            
+        Returns: 
+            str: 카테고리 표시명
+        """
+        from .config import STOCK_CATEGORIES, DEFAULT_STOCK_CATEGORY
+        
+        if category_key in STOCK_CATEGORIES:
+            return STOCK_CATEGORIES[category_key]
+        return STOCK_CATEGORIES.get(DEFAULT_STOCK_CATEGORY, '기타')
+    
     def load_monitoring_stocks(self) -> Dict:
         """모니터링 주식 데이터 로드 (확장된 스키마 지원)"""
         try:
@@ -168,10 +207,13 @@ class StockMonitor:
         if category in STOCK_CATEGORIES:
             return category
         
-        # 기존 "주식" 카테고리를 "기타"로 매핑
-        if category in ["주식", "stock", "equity"]:
-            return "기타"
+        # "기타" 카테고리를 "주식"으로 마이그레이션
+        if category == "기타":
+            return "주식"
         
+        # 기존 "주식" 카테고리를 "주식"으로 매핑 (유지)
+        if category in ["주식", "stock", "equity"]:
+            return "주식"
         return DEFAULT_STOCK_CATEGORY
     
     def _validate_alert_settings(self, alert_settings: Dict) -> Dict:
@@ -419,7 +461,7 @@ class StockMonitor:
     def normalize_category(self, category: str) -> str:
         """카테고리 명칭 표준화"""
         category_mapping = {
-            '기타': '주식',
+            '주식': '주식',
             'other': '주식',
             'stock': '주식',
             'mezzanine': '메자닌'
@@ -1350,7 +1392,7 @@ class StockMonitor:
                     stock_alert = {
                         'stock_code': code,
                         'stock_name': info.get('name', code),
-                        'category': info.get('category', '기타'),
+                        'category': info.get('category', '주식'),
                         'current_price': info.get('current_price', 0),
                         'change_percent': info.get('change_percent', 0),
                         'triggered_alerts': list(triggered_alerts) if isinstance(triggered_alerts, set) else triggered_alerts,
