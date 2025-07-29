@@ -3,49 +3,80 @@
  * Flask 백엔드 API와 연동하여 DART 모니터링 시스템 관리
  */
 
+// 메타마스크 충돌 방지
+if (typeof window.ethereum !== 'undefined') {
+    console.warn('MetaMask detected - potential conflicts may occur');
+}
+
 // 전역 변수
 let refreshInterval;
+let elements; // DOM 요소들은 초기화 시점에 정의
 
-// DOM 요소 참조
-const elements = {
-    // 상태 표시
-    dartStatus: document.getElementById('dart-status'),
+// DOM 요소 선택자 매핑
+const ELEMENT_SELECTORS = {
+    // 상태 표시 요소들
+    dartStatus: 'dart-status',
+    lastCheckTime: 'last-check-time',
     
-    // 통계 카드
-    companiesCount: document.getElementById('companies-count'),
-    keywordsCount: document.getElementById('keywords-count'),
-    disclosuresToday: document.getElementById('disclosures-today'),
-    processedCount: document.getElementById('processed-count'),
+    // 데이터 표시 컨테이너들
+    companiesList: 'companies-list',
+    companiesCount: 'companies-count',
+    keywordsList: 'keywords-list',
+    keywordsCount: 'keywords-count',
+    sectionsList: 'sections-list',
+    disclosuresList: 'disclosures-list',
+    disclosuresToday: 'disclosures-today',
+    processedCount: 'processed-count',
+    monitoredStocksList: 'monitored-stocks-list',
     
-    // 리스트 컨테이너
-    companiesList: document.getElementById('companies-list'),
-    keywordsList: document.getElementById('keywords-list'),
-    sectionsList: document.getElementById('sections-list'),
-    disclosuresList: document.getElementById('disclosures-list'),
-    monitoredStocksList: document.getElementById('monitored-stocks-list'),
+    // 컨트롤 버튼들
+    refreshCompanies: 'refresh-companies',
+    refreshKeywords: 'refresh-keywords',
+    refreshDisclosures: 'refresh-disclosures',
+    refreshMonitoredStocks: 'refresh-monitored-stocks',
+    refreshLogs: 'refresh-logs',
+    refreshAll: 'refresh-all',
+    manualCheck: 'manual-check',
+    addCompany: 'add-company',
+    addKeyword: 'add-keyword',
     
-    // 버튼들
-    refreshCompanies: document.getElementById('refresh-companies'),
-    refreshKeywords: document.getElementById('refresh-keywords'),
-    refreshDisclosures: document.getElementById('refresh-disclosures'),
-    manualCheck: document.getElementById('manual-check'),
-    addCompany: document.getElementById('add-company'),
-    addKeyword: document.getElementById('add-keyword'),
-    refreshMonitoredStocks: document.getElementById('refresh-monitored-stocks'),
+    // 필터 및 입력 요소들
+    companyFilter: 'company-filter',
+    dateFilter: 'date-filter',
+    logHours: 'log-hours',
     
-    // 필터
-    companyFilter: document.getElementById('company-filter'),
-    dateFilter: document.getElementById('date-filter'),
-    
-    // 시스템 정보
-    lastCheckTime: document.getElementById('last-check-time'),
-    
-    // 새로운 UI 요소들
-    dartLogs: document.getElementById('dart-logs'),
-    logHours: document.getElementById('log-hours'),
-    refreshLogs: document.getElementById('refresh-logs'),
-    refreshAll: document.getElementById('refresh-all')
+    // 로그 표시 영역
+    dartLogs: 'dart-logs'
 };
+
+// DOM 요소 초기화 함수
+function initializeElements() {
+    console.log('DOM 요소 초기화 시작...');
+    
+    const elements = {};
+    const missingElements = [];
+    
+    // 모든 요소 ID를 확인하고 DOM 요소 참조 생성
+    for (const [key, id] of Object.entries(ELEMENT_SELECTORS)) {
+        const element = document.getElementById(id);
+        if (element) {
+            elements[key] = element;
+            console.log(`✅ DOM 요소 로드 성공: ${key} (${id})`);
+        } else {
+            missingElements.push(`${key} (${id})`);
+            console.warn(`⚠️ DOM 요소 누락: ${key} (${id})`);
+        }
+    }
+    
+    // 누락된 요소가 있어도 초기화된 요소들은 반환
+    if (missingElements.length > 0) {
+        console.warn('일부 DOM 요소가 누락되었습니다:', missingElements);
+        console.warn('누락된 요소들은 해당 기능이 비활성화될 수 있습니다.');
+    }
+    
+    console.log(`DOM 요소 초기화 완료: ${Object.keys(elements).length}개 요소 로드됨`);
+    return elements;
+}
 
 // 공통 에러 처리 함수들
 const errorHandler = {
@@ -766,6 +797,36 @@ async function performManualCheck() {
 
 // 이벤트 리스너 설정
 function setupEventListeners() {
+    console.log('=== DART 페이지 이벤트 리스너 설정 시작 ===');
+    
+    // DOM 요소 존재 여부 확인
+    const requiredElements = {
+        refreshCompanies: elements.refreshCompanies,
+        refreshKeywords: elements.refreshKeywords,
+        refreshDisclosures: elements.refreshDisclosures,
+        refreshMonitoredStocks: elements.refreshMonitoredStocks,
+        companyFilter: elements.companyFilter,
+        dateFilter: elements.dateFilter,
+        manualCheck: elements.manualCheck,
+        addCompany: elements.addCompany,
+        addKeyword: elements.addKeyword
+    };
+    
+    // 누락된 요소 확인
+    const missingElements = [];
+    Object.keys(requiredElements).forEach(key => {
+        if (!requiredElements[key]) {
+            missingElements.push(key);
+            console.error(`❌ 누락된 DOM 요소: ${key}`);
+        } else {
+            console.log(`✅ DOM 요소 확인: ${key}`);
+        }
+    });
+    
+    if (missingElements.length > 0) {
+        console.error('❌ DOM 요소 누락으로 인한 이벤트 리스너 설정 실패:', missingElements);
+        return false;
+    }
     // 새로고침 버튼들
     elements.refreshCompanies.addEventListener('click', loadCompanies);
     elements.refreshKeywords.addEventListener('click', loadKeywords);
@@ -821,16 +882,33 @@ function setupEventListeners() {
             // 포커스를 다시 날짜 필드로 이동
             setTimeout(() => event.target.focus(), 100);
         }
-    });
-}
+        });
+        
+        console.log('✅ DART 페이지 이벤트 리스너 설정 완료!');
+        return true;
+        }
 
 // 초기화 함수
 async function initialize() {
     console.log('DART 관리 페이지 초기화 시작');
     
     try {
-        // 이벤트 리스너 설정
-        setupEventListeners();
+        // 1. DOM 요소 초기화 (최우선)
+        elements = initializeElements();
+        
+        // 2. DOM 요소 초기화 검증
+        if (!elements || Object.keys(elements).length === 0) {
+            console.error('필수 DOM 요소 초기화 실패');
+            utils.showAlert('페이지 초기화 중 오류가 발생했습니다. 페이지를 새로고침해 주세요.', 'error');
+            return;
+        }
+        
+        // 3. 이벤트 리스너 설정
+        const eventListenerResult = setupEventListeners();
+        if (!eventListenerResult) {
+            console.error('이벤트 리스너 설정 실패');
+            return;
+        }
         
         // 날짜 필터 기본값 설정 (오늘 날짜를 기본으로)
         if (elements.dateFilter) {
