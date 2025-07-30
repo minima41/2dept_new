@@ -3,6 +3,11 @@
  * Flask 백엔드 API와 연동하여 실시간 데이터 표시
  */
 
+// 메타마스크 충돌 방지
+if (typeof window.ethereum !== 'undefined') {
+    console.warn('MetaMask detected - potential conflicts may occur');
+}
+
 // 전역 변수
 let currentStockTab = 'all';
 let currentAlertFilter = 'all';
@@ -84,6 +89,15 @@ const utils = {
         const colorClass = value > 0 ? 'price-up' : value < 0 ? 'price-down' : 'price-unchanged';
         const sign = value > 0 ? '+' : '';
         return `<span class="${colorClass}">${sign}${value.toFixed(2)}%</span>`;
+    },
+    
+    // 수익률 포맷 (취득가 기준)
+    formatReturnRate: (currentPrice, acquisitionPrice) => {
+        if (!currentPrice || !acquisitionPrice || acquisitionPrice <= 0) return '-';
+        const returnRate = ((currentPrice - acquisitionPrice) / acquisitionPrice) * 100;
+        const colorClass = returnRate > 0 ? 'price-up' : returnRate < 0 ? 'price-down' : 'price-unchanged';
+        const sign = returnRate > 0 ? '+' : '';
+        return `<span class="${colorClass}">${sign}${returnRate.toFixed(2)}%</span>`;
     },
     
     // 시간 포맷
@@ -481,35 +495,99 @@ const ui = {
     updateSystemStatus(data) {
         // DART 모니터링 상태
         const dartEnabled = data.dart_monitoring?.enabled;
+        const dartLastCheck = data.dart_monitoring?.last_check;
         elements.dartStatus.className = `status-indicator ${dartEnabled ? 'active' : 'inactive'}`;
         elements.dartStatus.innerHTML = `<i class="fas fa-circle"></i> ${dartEnabled ? '활성' : '비활성'}`;
         
+        // DART 상태에 툴팁 추가
+        if (dartLastCheck) {
+            const lastCheckText = utils.formatTimeDiff(dartLastCheck);
+            elements.dartStatus.title = `DART 모니터링 상태: ${dartEnabled ? '활성' : '비활성'}\n마지막 확인: ${lastCheckText}`;
+        }
+        
         // 주식 모니터링 상태
         const stockEnabled = data.stock_monitoring?.enabled;
+        const stockLastUpdate = data.stock_monitoring?.last_update;
         elements.stockStatus.className = `status-indicator ${stockEnabled ? 'active' : 'inactive'}`;
         elements.stockStatus.innerHTML = `<i class="fas fa-circle"></i> ${stockEnabled ? '활성' : '비활성'}`;
         
-        // 가동 시간
-        if (elements.systemUptime) {
-            elements.systemUptime.textContent = utils.formatUptime(data.system?.uptime_seconds);
+        // 주식 상태에 툴팁 추가
+        if (stockLastUpdate) {
+            const lastUpdateText = utils.formatTimeDiff(stockLastUpdate);
+            const alertsToday = data.stock_monitoring?.alerts_today || 0;
+            elements.stockStatus.title = `주식 모니터링 상태: ${stockEnabled ? '활성' : '비활성'}\n마지막 업데이트: ${lastUpdateText}\n오늘 알림: ${alertsToday}건`;
         }
         
-        // 통계 업데이트
+        // 가동 시간
+        if (elements.systemUptime) {
+            const uptimeText = utils.formatUptime(data.system?.uptime_seconds);
+            elements.systemUptime.textContent = uptimeText;
+            // 가동 시간에 툴팁 추가
+            elements.systemUptime.title = `시스템 가동 시간: ${uptimeText}`;
+        }
+        
+        // 통계 업데이트 (기존 코드 유지)
         if (elements.dartAlertsToday) {
-            elements.dartAlertsToday.textContent = data.dart_monitoring?.alerts_today || 0;
+            const dartAlertsCount = data.dart_monitoring?.alerts_today || 0;
+            elements.dartAlertsToday.textContent = dartAlertsCount;
+            elements.dartAlertsToday.title = `오늘 DART 알림: ${dartAlertsCount}건`;
         }
         if (elements.stockAlertsToday) {
-            elements.stockAlertsToday.textContent = data.stock_monitoring?.alerts_today || 0;
+            const stockAlertsCount = data.stock_monitoring?.alerts_today || 0;
+            elements.stockAlertsToday.textContent = stockAlertsCount;
+            elements.stockAlertsToday.title = `오늘 주식 알림: ${stockAlertsCount}건`;
         }
         if (elements.stockAlertsToday2) {
-            elements.stockAlertsToday2.textContent = data.stock_monitoring?.alerts_today || 0;
+            const stockAlertsCount = data.stock_monitoring?.alerts_today || 0;
+            elements.stockAlertsToday2.textContent = stockAlertsCount;
+            elements.stockAlertsToday2.title = `오늘 주식 알림: ${stockAlertsCount}건`;
         }
         if (elements.totalStocks) {
-            elements.totalStocks.textContent = data.monitoring_stocks_count || 0;
+            const totalStocksCount = data.monitoring_stocks_count || 0;
+            elements.totalStocks.textContent = totalStocksCount;
+            elements.totalStocks.title = `총 모니터링 종목 수: ${totalStocksCount}개`;
         }
         if (elements.lastStockUpdate) {
-            elements.lastStockUpdate.textContent = utils.formatTimeDiff(data.stock_monitoring?.last_update);
+            const lastUpdateText = utils.formatTimeDiff(data.stock_monitoring?.last_update);
+            elements.lastStockUpdate.textContent = lastUpdateText;
+            elements.lastStockUpdate.title = `마지막 주식 데이터 업데이트: ${lastUpdateText}`;
         }
+        
+        // 시스템 전체 상태 표시
+        this.updateOverallSystemHealth(data);
+    },
+    
+    // 시스템 전체 건전성 표시
+    updateOverallSystemHealth(data) {
+        const dartOk = data.dart_monitoring?.enabled;
+        const stockOk = data.stock_monitoring?.enabled;
+        const systemOk = data.system?.uptime_seconds > 0;
+        
+        let healthStatus = 'excellent';
+        let healthText = '정상';
+        let healthColor = 'var(--success-color)';
+        
+        if (!dartOk || !stockOk) {
+            healthStatus = 'warning';
+            healthText = '주의';
+            healthColor = 'var(--warning-color)';
+        }
+        
+        if (!systemOk) {
+            healthStatus = 'error';
+            healthText = '오류';
+            healthColor = 'var(--danger-color)';
+        }
+        
+        // 전체 시스템 상태 배지 추가 (필요시)
+        const statusBadge = document.querySelector('.system-health-badge');
+        if (statusBadge) {
+            statusBadge.textContent = healthText;
+            statusBadge.className = `system-health-badge ${healthStatus}`;
+            statusBadge.style.backgroundColor = healthColor;
+        }
+        
+        console.log(`시스템 전체 상태: ${healthText} (DART: ${dartOk ? 'OK' : 'NG'}, 주식: ${stockOk ? 'OK' : 'NG'}, 시스템: ${systemOk ? 'OK' : 'NG'})`);
     },
     
     // 주식 테이블 업데이트
@@ -530,8 +608,7 @@ const ui = {
         const filteredStocks = stocks.filter(([code, info]) => {
             if (currentStockCategory === 'all') return true;
             if (currentStockCategory === '메자닌') return info.category === '메자닌';
-            if (currentStockCategory === '주식') return info.category === '주식' || info.category === '기타';
-            if (currentStockCategory === '기타') return info.category === '기타';
+            if (currentStockCategory === '주식') return info.category === '주식';
             return true;
         });
         
@@ -570,12 +647,17 @@ const ui = {
             const alertSettings = info.alert_settings || {};
             const alertEnabled = alertSettings.alert_enabled !== false; // 기본값 true
             
+            // 수익률 계산
+            const returnRate = utils.formatReturnRate(info.current_price, info.acquisition_price);
+            
+            
             row.innerHTML = `
                 <td><code>${code}</code></td>
                 <td><strong>${info.name || code}</strong></td>
                 <td><span class="category-badge category-${category === '메자닌' ? 'mezzanine' : 'others'}">${category}</span></td>
                 <td class="text-right price-cell" data-price="${info.current_price || 0}">${currentPrice}</td>
                 <td class="text-right">${changePercent}</td>
+                <td class="text-right">${returnRate}</td>
                 ${extraColumns}
                 <td class="text-right">${targetPrice}</td>
                 <td class="text-right">${stopLoss}</td>
@@ -618,6 +700,7 @@ const ui = {
                 <th>구분</th>
                 <th>현재가</th>
                 <th>등락률</th>
+                <th>수익률</th>
                 <th>패리티(%)</th>
                 <th>목표가(TP)</th>
                 <th>손절가(SL)</th>
@@ -633,6 +716,7 @@ const ui = {
                 <th>구분</th>
                 <th>현재가</th>
                 <th>등락률</th>
+                <th>수익률</th>
                 <th>목표가(TP)</th>
                 <th>손절가(SL)</th>
                 <th>마지막체크</th>
@@ -669,6 +753,12 @@ const ui = {
         alerts.forEach(alert => {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert-item ${alert.type} ${alert.read ? 'read' : 'unread'}`;
+            alertDiv.style.cursor = alert.stock_code ? 'pointer' : 'default'; // 주식 알림일 때만 클릭 가능
+            
+            // 주식 알림인 경우 종목 코드 데이터 속성 추가
+            if (alert.stock_code) {
+                alertDiv.dataset.stockCode = alert.stock_code;
+            }
             
             const iconClass = alert.type === 'dart' ? 'fas fa-file-alt' : 'fas fa-chart-line';
             const priorityClass = alert.priority >= 50 ? 'high' : alert.priority >= 20 ? 'medium' : 'low';
@@ -701,6 +791,19 @@ const ui = {
             });
         });
         
+        // 알림 클릭 시 종목 상세 정보 모달 표시
+        elements.alertsList.querySelectorAll('.alert-item').forEach(alertItem => {
+            if (alertItem.dataset.stockCode) { // 주식 알림인 경우만
+                alertItem.addEventListener('click', (e) => {
+                    // 버튼 클릭이 아닌 경우만 처리
+                    if (!e.target.closest('.btn-mark-read')) {
+                        const stockCode = alertItem.dataset.stockCode;
+                        this.showStockDetailModal(stockCode);
+                    }
+                });
+            }
+        });
+        
         // 미읽은 알림 수 업데이트
         const unreadCount = alerts.filter(alert => !alert.read).length;
         if (elements.unreadAlerts) {
@@ -719,6 +822,63 @@ const ui = {
         elements.alertsList.style.display = 'none';
         elements.noAlerts.style.display = 'block';
     },
+    
+    // 전체 미확인 알림 수 업데이트
+    async updateTotalUnreadCount() {
+        try {
+            console.log('전체 미확인 알림 수 업데이트 시작...');
+            
+            // 전체 알림 가져오기 (필터 없이)
+            const data = await api.getAlerts(1, 'all'); // 모든 알림 가져오기
+            
+            if (!data || !data.success) {
+                console.warn('전체 알림 데이터 로드 실패');
+                return;
+            }
+            
+            const alerts = data.data || [];
+            
+            // 전체 미확인 알림 수 계산
+            const totalUnreadCount = alerts.filter(alert => !alert.read).length;
+            
+            // UI 업데이트
+            if (elements.unreadAlerts) {
+                elements.unreadAlerts.textContent = totalUnreadCount;
+                
+                // 미확인 알림이 있으면 강조 표시
+                if (totalUnreadCount > 0) {
+                    elements.unreadAlerts.classList.add('highlight');
+                } else {
+                    elements.unreadAlerts.classList.remove('highlight');
+                }
+            }
+            
+            console.log(`전체 미확인 알림 수: ${totalUnreadCount}건`);
+            
+            // 오늘 주식 알림 수도 계산
+            const today = new Date().toISOString().split('T')[0];
+            const todayStockAlerts = alerts.filter(alert => {
+                const alertDate = new Date(alert.timestamp).toISOString().split('T')[0];
+                return alertDate === today && alert.type === 'stock';
+            }).length;
+            
+            // 오늘 주식 알림 수 업데이트
+            if (elements.stockAlertsToday2) {
+                elements.stockAlertsToday2.textContent = todayStockAlerts;
+            }
+            
+            return totalUnreadCount;
+            
+        } catch (error) {
+            console.error('전체 미확인 알림 수 업데이트 실패:', error);
+            
+            // 오류 시 기본값 표시
+            if (elements.unreadAlerts) {
+                elements.unreadAlerts.textContent = '-';
+                elements.unreadAlerts.classList.remove('highlight');
+            }
+        }
+        },
     
     // 알림 읽음 처리
     async markAlertRead(alertId) {
@@ -750,6 +910,9 @@ const ui = {
             
             this.showToast('알림을 읽음으로 처리했습니다.', 'success');
             
+            // 전체 미확인 알림 수 업데이트
+            await this.updateTotalUnreadCount();
+            
         } catch (error) {
             console.error('알림 읽음 처리 실패:', error);
             this.showToast(`알림 처리에 실패했습니다: ${error.message}`, 'error');
@@ -767,6 +930,186 @@ const ui = {
     hideModal() {
         elements.modalOverlay.style.display = 'none';
     },
+    
+    // 종목 상세 정보 모달 표시
+    async showStockDetailModal(stockCode) {
+        try {
+            console.log('종목 상세 정보 모달 표시:', stockCode);
+            
+            // 주식 데이터 가져오기
+            const stocksData = await api.getStocks();
+            
+            if (!stocksData.success || !stocksData.data) {
+                throw new Error('주식 데이터를 가져올 수 없습니다.');
+            }
+            
+            const stockInfo = stocksData.data[stockCode];
+            
+            if (!stockInfo) {
+                throw new Error(`종목 ${stockCode}의 정보를 찾을 수 없습니다.`);
+            }
+            
+            // 모달 제목 설정
+            const title = `종목 상세 정보: ${stockInfo.name} (${stockCode})`;
+            
+            // 상세 정보 HTML 생성
+            const detailHtml = `
+                <div class="stock-detail-content">
+                    <div class="stock-basic-info">
+                        <h4><i class="fas fa-chart-line"></i> 기본 정보</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">종목코드:</span>
+                                <span class="value">${stockCode}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">종목명:</span>
+                                <span class="value">${stockInfo.name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">카테고리:</span>
+                                <span class="value badge badge-${stockInfo.category === '매수' ? 'success' : 'info'}">${stockInfo.category}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">현재가:</span>
+                                <span class="value price-value ${stockInfo.change_percent >= 0 ? 'text-success' : 'text-danger'}">
+                                    ${this.formatCurrency(stockInfo.current_price)}
+                                    <small>(${stockInfo.change_percent >= 0 ? '+' : ''}${stockInfo.change_percent?.toFixed(2)}%)</small>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stock-target-info">
+                        <h4><i class="fas fa-bullseye"></i> 목표가 정보</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">목표가:</span>
+                                <span class="value text-success">${this.formatCurrency(stockInfo.target_price)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">손절가:</span>
+                                <span class="value text-danger">${this.formatCurrency(stockInfo.stop_loss)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">취등가:</span>
+                                <span class="value">${stockInfo.acquisition_price ? this.formatCurrency(stockInfo.acquisition_price) : '미설정'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">수익률:</span>
+                                <span class="value">
+                                    ${stockInfo.acquisition_price && stockInfo.acquisition_price > 0 ? 
+                                        (() => {
+                                            const profitRate = ((stockInfo.current_price - stockInfo.acquisition_price) / stockInfo.acquisition_price * 100);
+                                            return `<span class="${profitRate >= 0 ? 'text-success' : 'text-danger'}">${profitRate >= 0 ? '+' : ''}${profitRate.toFixed(2)}%</span>`;
+                                        })()
+                                        : '미설정'
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${stockInfo.memo ? `
+                    <div class="stock-memo">
+                        <h4><i class="fas fa-sticky-note"></i> 메모</h4>
+                        <div class="memo-content">${stockInfo.memo}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="stock-alert-info">
+                        <h4><i class="fas fa-bell"></i> 알림 설정</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">알림 활성화:</span>
+                                <span class="value badge ${stockInfo.enabled ? 'badge-success' : 'badge-danger'}">
+                                    ${stockInfo.enabled ? '활성화' : '비활성화'}
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">상승 임계값:</span>
+                                <span class="value">${stockInfo.alert_settings?.rise_threshold || 5}%</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">하락 임계값:</span>
+                                <span class="value">${stockInfo.alert_settings?.fall_threshold || 5}%</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">마지막 업데이트:</span>
+                                <span class="value">${stockInfo.last_updated ? new Date(stockInfo.last_updated).toLocaleString('ko-KR') : '없음'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 모달 표시
+            elements.modalTitle.textContent = title;
+            elements.modalMessage.innerHTML = detailHtml;
+            elements.modalOverlay.style.display = 'flex';
+            
+            console.log('종목 상세 정보 모달 표시 완료');
+            
+        } catch (error) {
+            console.error('종목 상세 정보 모달 표시 실패:', error);
+            this.showToast(`종목 상세 정보를 가져올 수 없습니다: ${error.message}`, 'error');
+        }
+    },
+    
+    // 버튼 로딩 상태 관리
+    setButtonLoading(buttonElement, loading = true) {
+        if (!buttonElement) return;
+        
+        if (loading) {
+            buttonElement.disabled = true;
+            buttonElement.dataset.originalText = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리중...';
+            buttonElement.classList.add('btn-loading');
+        } else {
+            buttonElement.disabled = false;
+            buttonElement.innerHTML = buttonElement.dataset.originalText || buttonElement.innerHTML;
+            buttonElement.classList.remove('btn-loading');
+            delete buttonElement.dataset.originalText;
+        }
+    },
+    
+    // ID로 버튼 로딩 상태 설정
+    setButtonLoadingById(buttonId, loading = true) {
+        const button = document.getElementById(buttonId);
+        this.setButtonLoading(button, loading);
+    },
+    
+    // 전역 로딩 오버레이 관리
+    showGlobalLoading(message = '처리중...') {
+        let overlay = document.getElementById('global-loading-overlay');
+        
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'global-loading-overlay';
+            overlay.className = 'global-loading-overlay';
+            overlay.innerHTML = `
+                <div class="global-loading-content">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="loading-message">${message}</p>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        } else {
+            const messageEl = overlay.querySelector('.loading-message');
+            if (messageEl) messageEl.textContent = message;
+        }
+        
+        overlay.style.display = 'flex';
+        document.body.classList.add('loading-active');
+    },
+    
+    hideGlobalLoading() {
+        const overlay = document.getElementById('global-loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+        document.body.classList.remove('loading-active');
+        },
     
     // 토스트 알림 표시
     showToast(message, type = 'info', duration = 3000) {
@@ -1027,6 +1370,13 @@ const dataLoader = {
         } else {
             console.log('전체 데이터 로드 완료: 모든 작업 성공');
         }
+        
+        // 전체 미확인 알림 수 업데이트
+        try {
+            await ui.updateTotalUnreadCount();
+        } catch (error) {
+            console.error('전체 미확인 알림 수 업데이트 실패:', error);
+        }
     }
 };
 
@@ -1083,7 +1433,10 @@ const eventHandlers = {
         } catch (error) {
             console.error('주식 수동 업데이트 실패:', error);
             ui.showToast(`주식 업데이트 실패: ${error.message}`, 'error');
-        }
+            } finally {
+            // 버튼 로딩 상태 종료
+            ui.setButtonLoading(updateButton, false);
+            }
     },
     
     // DART 수동 확인
@@ -1490,7 +1843,7 @@ function updateSubTabCounts() {
         
         if (rowCategory === '메자닌') {
             mezzanineCount++;
-        } else if (rowCategory === '주식' || rowCategory === '기타') {
+        } else if (rowCategory === '주식') {
             stockCount++;
         }
     });
@@ -1707,7 +2060,7 @@ async function loadStockDataForEdit(stockCode) {
         document.getElementById('stock-name').value = stockInfo.name || '';
         
         // 카테고리 설정
-        const category = stockInfo.category === '메자닌' ? '기타' : '매수'; // 매수/기타로 매핑
+        const category = stockInfo.category === '메자닌' ? '주식' : '매수'; // 매수/주식으로 매핑
         document.querySelector(`input[name="stock-category-radio"][value="${category}"]`).checked = true;
         
         // 가격 정보
