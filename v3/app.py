@@ -1222,7 +1222,7 @@ def add_stock():
         stock_name = data.get('stock_name', '').strip()
         target_price = data.get('target_price')
         stop_loss = data.get('stop_loss')
-        category = data.get('category', '기타').strip()
+        category = data.get('category', '주식').strip()
         
         # 확장된 필드
         acquisition_price = data.get('acquisition_price', 0)
@@ -1946,7 +1946,7 @@ def get_daily_history():
                 stock_alerts.append({
                     'stock_code': code,
                     'stock_name': info.get('name', code),
-                    'category': info.get('category', '기타'),
+                    'category': info.get('category', '주식'),
                     'current_price': info.get('current_price', 0),
                     'change_percent': info.get('change_percent', 0),
                     'triggered_alerts': list(triggered_alerts) if isinstance(triggered_alerts, set) else triggered_alerts,
@@ -2093,6 +2093,190 @@ def validate_stock_code():
         
     except Exception as e:
         return create_error_response(str(e), 'STOCK_VALIDATE_ERROR')
+
+# === 손절가 설정 API 엔드포인트 ===
+
+@app.route('/api/v1/stocks/stop-loss/options', methods=['GET'])
+@login_required
+@performance_monitor('손절가 옵션 조회')
+@api_request_logger
+def get_stop_loss_options():
+    """손절가 설정 옵션 목록 조회"""
+    try:
+        options = stock_monitor.get_stop_loss_options()
+        
+        return create_success_response({
+            'options': options,
+            'default_option': -5,  # 기본값 -5%
+            'description': '취득가 기준 손절가 설정 옵션'
+        })
+        
+    except Exception as e:
+        return create_error_response(str(e), 'STOP_LOSS_OPTIONS_ERROR')
+
+@app.route('/api/v1/stocks/<stock_code>/stop-loss', methods=['POST'])
+@login_required
+@performance_monitor('손절가 설정')
+@api_request_logger
+def set_stop_loss(stock_code):
+    """개별 종목 손절가 설정"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        stop_loss_option = data.get('stop_loss_option')
+        custom_value = data.get('custom_value')
+        
+        # 필수 파라미터 검증
+        if stop_loss_option is None:
+            return create_error_response("손절가 옵션을 선택해주세요", 'MISSING_OPTION', 400)
+        
+        # 커스텀 입력 시 값 검증
+        if stop_loss_option == 'custom':
+            if custom_value is None or custom_value <= 0:
+                return create_error_response("직접입력 시 유효한 손절가 값이 필요합니다", 'INVALID_CUSTOM_VALUE', 400)
+        
+        # 종목 존재 여부 확인
+        if stock_code not in stock_monitor.monitoring_stocks:
+            return create_error_response(f"모니터링 중이지 않은 종목입니다: {stock_code}", 'STOCK_NOT_FOUND', 404)
+        
+        # 손절가 설정 적용
+        success = stock_monitor.apply_stop_loss_setting(stock_code, stop_loss_option, custom_value)
+        
+        if success:
+            # 업데이트된 종목 정보 조회
+            updated_stock = stock_monitor.monitoring_stocks.get(stock_code, {})
+            
+            result = {
+                'stock_code': stock_code,
+                'stock_name': updated_stock.get('name', stock_code),
+                'new_stop_loss': updated_stock.get('stop_loss', 0),
+                'acquisition_price': updated_stock.get('acquisition_price', 0),
+                'stop_loss_option': stop_loss_option,
+                'applied_at': datetime.now().isoformat()
+            }
+            
+            if stop_loss_option != 'custom':
+                result['stop_loss_percent'] = stop_loss_option
+            else:
+                result['custom_value'] = custom_value
+            
+            logger.info(f"손절가 설정 완료: {updated_stock.get('name', stock_code)} ({stock_code}) - {updated_stock.get('stop_loss', 0):,.0f}원")
+            
+            return create_success_response(result)
+        else:
+            return create_error_response("손절가 설정에 실패했습니다", 'STOP_LOSS_SET_FAILED', 500)
+            
+    except Exception as e:
+        return create_error_response(str(e), 'STOP_LOSS_SET_ERROR')
+
+@app.route('/api/v1/stocks/<stock_code>/stop-loss/calculate', methods=['POST'])
+@login_required
+@performance_monitor('손절가 계산')
+@api_request_logger
+def calculate_stop_loss(stock_code):
+    """종목의 손절가 미리 계산 (적용하지 않음)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        stop_loss_percent = data.get('stop_loss_percent', -5.0)
+        acquisition_price = data.get('acquisition_price')
+        
+        # 종목 정보에서 취득가 조회 (파라미터로 제공되지 않은 경우)
+        if acquisition_price is None:
+            if stock_code in stock_monitor.monitoring_stocks:
+                acquisition_price = stock_monitor.monitoring_stocks[stock_code].get('acquisition_price', 0)
+            else:
+                return create_error_response("취득가 정보가 없습니다", 'NO_ACQUISITION_PRICE', 400)
+        
+        if acquisition_price <= 0:
+            return create_error_response("유효한 취득가가 필요합니다", 'INVALID_ACQUISITION_PRICE', 400)
+        
+        # 손절가 계산
+        calculated_stop_loss = stock_monitor.calculate_stop_loss(acquisition_price, stop_loss_percent)
+        
+        result = {
+            'stock_code': stock_code,
+            'acquisition_price': acquisition_price,
+            'stop_loss_percent': stop_loss_percent,
+            'calculated_stop_loss': calculated_stop_loss,
+            'loss_amount': acquisition_price - calculated_stop_loss,
+            'loss_percent': stop_loss_percent,
+            'calculated_at': datetime.now().isoformat()
+        }
+        
+        return create_success_response(result)
+        
+    except Exception as e:
+        return create_error_response(str(e), 'STOP_LOSS_CALCULATE_ERROR')
+
+@app.route('/api/v1/stocks/stop-loss/batch', methods=['POST'])
+@login_required
+@performance_monitor('일괄 손절가 설정')
+@api_request_logger
+def set_batch_stop_loss():
+    """여러 종목 일괄 손절가 설정"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        stock_codes = data.get('stock_codes', [])
+        stop_loss_option = data.get('stop_loss_option')
+        custom_value = data.get('custom_value')
+        
+        if not stock_codes:
+            return create_error_response("종목 목록이 비어있습니다", 'EMPTY_STOCK_LIST', 400)
+        
+        if stop_loss_option is None:
+            return create_error_response("손절가 옵션을 선택해주세요", 'MISSING_OPTION', 400)
+        
+        results = {
+            'success': [],
+            'failed': [],
+            'summary': {
+                'total': len(stock_codes),
+                'success_count': 0,
+                'failed_count': 0
+            }
+        }
+        
+        # 각 종목별로 손절가 설정 적용
+        for stock_code in stock_codes:
+            try:
+                success = stock_monitor.apply_stop_loss_setting(stock_code, stop_loss_option, custom_value)
+                
+                if success:
+                    updated_stock = stock_monitor.monitoring_stocks.get(stock_code, {})
+                    results['success'].append({
+                        'stock_code': stock_code,
+                        'stock_name': updated_stock.get('name', stock_code),
+                        'new_stop_loss': updated_stock.get('stop_loss', 0)
+                    })
+                    results['summary']['success_count'] += 1
+                else:
+                    results['failed'].append({
+                        'stock_code': stock_code,
+                        'error': '손절가 설정 실패'
+                    })
+                    results['summary']['failed_count'] += 1
+                    
+            except Exception as e:
+                results['failed'].append({
+                    'stock_code': stock_code,
+                    'error': str(e)
+                })
+                results['summary']['failed_count'] += 1
+        
+        logger.info(f"일괄 손절가 설정 완료: 성공 {results['summary']['success_count']}개, 실패 {results['summary']['failed_count']}개")
+        
+        return create_success_response(results)
+        
+    except Exception as e:
+        return create_error_response(str(e), 'BATCH_STOP_LOSS_ERROR')
 
 if __name__ == '__main__':
     try:

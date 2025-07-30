@@ -100,6 +100,87 @@ class StockMonitor:
         except (TypeError, ZeroDivisionError):
             return 0.0
     
+    def calculate_stop_loss(self, acquisition_price: float, stop_loss_percent: float = -5.0) -> float:
+        """
+        취득가 기준 손절가 계산
+        
+        Args:
+            acquisition_price (float): 취득가
+            stop_loss_percent (float): 손절가 퍼센트 (기본값: -5%)
+            
+        Returns:
+            float: 계산된 손절가
+        """
+        if acquisition_price is None or acquisition_price <= 0:
+            return 0.0
+            
+        try:
+            stop_loss_price = acquisition_price * (1 + stop_loss_percent / 100)
+            return round(stop_loss_price, 0)  # 정수로 반올림
+        except (TypeError, ZeroDivisionError):
+            return 0.0
+    
+    def get_stop_loss_options(self) -> List[Dict[str, any]]:
+        """
+        손절가 설정 옵션 제공
+        
+        Returns:
+            List[Dict]: 손절가 옵션 목록
+        """
+        return [
+            {'value': -5, 'label': '-5%', 'description': '취득가 대비 5% 하락'},
+            {'value': -10, 'label': '-10%', 'description': '취득가 대비 10% 하락'},
+            {'value': 'custom', 'label': '직접입력', 'description': '사용자 지정 손절가'}
+        ]
+    
+    def apply_stop_loss_setting(self, stock_code: str, stop_loss_option: any, custom_value: float = None) -> bool:
+        """
+        종목에 손절가 설정 적용
+        
+        Args:
+            stock_code (str): 종목코드
+            stop_loss_option: 손절가 옵션 (-5, -10, 'custom')
+            custom_value (float): 직접입력 시 손절가 값
+            
+        Returns:
+            bool: 적용 성공 여부
+        """
+        try:
+            if stock_code not in self.monitoring_stocks:
+                logger.error(f"존재하지 않는 종목: {stock_code}")
+                return False
+                
+            stock_info = self.monitoring_stocks[stock_code]
+            acquisition_price = stock_info.get('acquisition_price', 0)
+            
+            if stop_loss_option == 'custom':
+                if custom_value is None or custom_value <= 0:
+                    logger.error("직접입력 시 유효한 손절가 값이 필요합니다")
+                    return False
+                new_stop_loss = float(custom_value)
+            else:
+                if acquisition_price <= 0:
+                    logger.warning(f"취득가가 설정되지 않은 종목: {stock_code}, 기본 동작 유지")
+                    return True  # 취득가가 0인 경우 기본 동작 유지
+                    
+                stop_loss_percent = float(stop_loss_option)
+                new_stop_loss = self.calculate_stop_loss(acquisition_price, stop_loss_percent)
+            
+            # 손절가 업데이트
+            stock_info['stop_loss'] = new_stop_loss
+            
+            # 변경사항 저장
+            self.save_monitoring_stocks(self.monitoring_stocks)
+            
+            stock_name = stock_info.get('name', stock_code)
+            logger.info(f"손절가 설정 적용: {stock_name} ({stock_code}) - {new_stop_loss:,.0f}원")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"손절가 설정 적용 실패: {e}")
+            return False
+    
     def get_stock_category_display(self, category_key: str) -> str:
         """
         주식 카테고리 표시명 반환
