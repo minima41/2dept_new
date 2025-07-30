@@ -2278,6 +2278,255 @@ def set_batch_stop_loss():
     except Exception as e:
         return create_error_response(str(e), 'BATCH_STOP_LOSS_ERROR')
 
+# === 종목 정보 자동 조회 API 엔드포인트 ===
+
+@app.route('/api/v1/stocks/info', methods=['POST'])
+@login_required
+@performance_monitor('종목 정보 조회')
+@api_request_logger
+def get_stock_info():
+    """종목코드 입력 시 종목명과 전일가 자동 조회"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        stock_code = data.get('stock_code', '').strip()
+        
+        if not stock_code:
+            return create_error_response("종목코드를 입력해주세요", 'MISSING_STOCK_CODE', 400)
+        
+        # 종목코드 형식 검증 (6자리 숫자)
+        if not stock_code.isdigit() or len(stock_code) != 6:
+            return create_error_response("종목코드는 6자리 숫자여야 합니다", 'INVALID_STOCK_CODE_FORMAT', 400)
+        
+        # 종목 정보 조회
+        from modules.stock_monitor import stock_monitor
+        
+        # 1. 종목명 조회
+        try:
+            stock_name = stock_monitor.get_stock_name(stock_code)
+            
+            # 기본 종목명 형태인 경우 유효하지 않은 종목코드로 판단
+            if stock_name == f"종목 {stock_code}":
+                return create_error_response(f"존재하지 않은 종목코드입니다: {stock_code}", 'STOCK_NOT_FOUND', 404)
+                
+        except Exception as e:
+            logger.error(f"종목명 조회 실패: {stock_code} - {e}")
+            return create_error_response(f"종목명 조회에 실패했습니다: {str(e)}", 'STOCK_NAME_FETCH_FAILED', 500)
+        
+        # 2. 주가 정보 조회 (전일가 포함)
+        current_price = None
+        previous_close = None
+        change_percent = None
+        price_error = None
+        
+        try:
+            # PyKrx를 우선으로 사용하여 주가 정보 조회
+            price_info = stock_monitor.get_stock_price(stock_code)
+            current_price, change_percent, error = price_info
+            
+            if current_price is not None:
+                # 전일 종가 계산 (현재가에서 등락률 역산)
+                if change_percent != 0:
+                    previous_close = round(current_price / (1 + change_percent / 100))
+                else:
+                    previous_close = current_price
+            else:
+                price_error = error or "주가 정보를 가져올 수 없습니다"
+                
+        except Exception as e:
+            logger.error(f"주가 정보 조회 실패: {stock_code} - {e}")
+            price_error = f"주가 정보 조회 실패: {str(e)}"
+        
+        # 3. 기존 모니터링 여부 확인
+        already_monitored = stock_code in stock_monitor.monitoring_stocks
+        
+        # 4. 응답 데이터 구성
+        result = {
+            'stock_code': stock_code,
+            'stock_name': stock_name,
+            'is_valid': True,
+            'price_available': current_price is not None,
+            'current_price': current_price,
+            'previous_close': previous_close,
+            'change_percent': change_percent,
+            'already_monitored': already_monitored,
+            'fetched_at': datetime.now().isoformat()
+        }
+        
+        # 에러 정보 추가 (있는 경우)
+        if price_error:
+            result['price_error'] = price_error
+            result['price_available'] = False
+        
+        # 기존 모니터링 종목인 경우 추가 정보 제공
+        if already_monitored:
+            existing_info = stock_monitor.monitoring_stocks[stock_code]
+            result['existing_info'] = {
+                'target_price': existing_info.get('target_price', 0),
+                'stop_loss': existing_info.get('stop_loss', 0),
+                'category': existing_info.get('category', '주식'),
+                'acquisition_price': existing_info.get('acquisition_price', 0),
+                'enabled': existing_info.get('enabled', True)
+            }
+        
+        logger.info(f"종목 정보 조회 성공: {stock_name} ({stock_code}) - 가격: {current_price}, 전일가: {previous_close}")
+        
+        return create_success_response(result)
+        
+    except Exception as e:
+        logger.error(f"종목 정보 조회 오류: {e}")
+        return create_error_response(str(e), 'STOCK_INFO_ERROR')
+
+@app.route('/api/v1/stocks/search', methods=['POST'])
+@login_required
+@performance_monitor('종목 검색')
+@api_request_logger
+def search_stocks():
+    """종목 검색 (종목명 부분 매칭)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        query = data.get('query', '').strip()
+        
+        if not query:
+            return create_error_response("검색어를 입력해주세요", 'MISSING_QUERY', 400)
+        
+        if len(query) < 2:
+            return create_error_response("검색어는 2자 이상 입력해주세요", 'QUERY_TOO_SHORT', 400)
+        
+        # 기존 모니터링 종목에서 검색
+        from modules.stock_monitor import stock_monitor
+        
+        search_results = []
+        
+        for stock_code, stock_info in stock_monitor.monitoring_stocks.items():
+            stock_name = stock_info.get('name', stock_code)
+            
+            # 종목명에 검색어가 포함되어 있는지 확인
+            if query.lower() in stock_name.lower() or query in stock_code:
+                search_results.append({
+                    'stock_code': stock_code,
+                    'stock_name': stock_name,
+                    'current_price': stock_info.get('current_price', 0),
+                    'change_percent': stock_info.get('change_percent', 0),
+                    'category': stock_info.get('category', '주식'),
+                    'enabled': stock_info.get('enabled', True),
+                    'last_updated': stock_info.get('last_updated')
+                })
+        
+        # 검색 결과 정렬 (종목명 알파벳 순)
+        search_results.sort(key=lambda x: x['stock_name'])
+        
+        result = {
+            'query': query,
+            'results': search_results,
+            'total_count': len(search_results),
+            'searched_at': datetime.now().isoformat()
+        }
+        
+        logger.info(f"종목 검색 완료: '{query}' - {len(search_results)}개 결과")
+        
+        return create_success_response(result)
+        
+    except Exception as e:
+        logger.error(f"종목 검색 오류: {e}")
+        return create_error_response(str(e), 'STOCK_SEARCH_ERROR')
+
+@app.route('/api/v1/stocks/quick-add', methods=['POST'])
+@login_required
+@performance_monitor('빠른 종목 추가')
+@api_request_logger
+def quick_add_stock():
+    """종목코드만으로 빠른 종목 추가 (자동 정보 조회 후 추가)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("요청 데이터가 없습니다", 'NO_DATA', 400)
+        
+        stock_code = data.get('stock_code', '').strip()
+        category = data.get('category', '주식')
+        acquisition_price = data.get('acquisition_price', 0)
+        
+        if not stock_code:
+            return create_error_response("종목코드를 입력해주세요", 'MISSING_STOCK_CODE', 400)
+        
+        # 종목코드 형식 검증
+        if not stock_code.isdigit() or len(stock_code) != 6:
+            return create_error_response("종목코드는 6자리 숫자여야 합니다", 'INVALID_STOCK_CODE_FORMAT', 400)
+        
+        # 이미 모니터링 중인지 확인
+        from modules.stock_monitor import stock_monitor
+        
+        if stock_code in stock_monitor.monitoring_stocks:
+            existing_stock = stock_monitor.monitoring_stocks[stock_code]
+            return create_error_response(
+                f"이미 모니터링 중인 종목입니다: {existing_stock.get('name', stock_code)} ({stock_code})", 
+                'STOCK_ALREADY_EXISTS', 409
+            )
+        
+        # 종목 정보 자동 조회
+        try:
+            stock_name = stock_monitor.get_stock_name(stock_code)
+            
+            # 기본 종목명 형태인 경우 유효하지 않은 종목코드로 판단
+            if stock_name == f"종목 {stock_code}":
+                return create_error_response(f"존재하지 않은 종목코드입니다: {stock_code}", 'STOCK_NOT_FOUND', 404)
+                
+        except Exception as e:
+            logger.error(f"종목명 조회 실패: {stock_code} - {e}")
+            return create_error_response(f"종목명 조회에 실패했습니다: {str(e)}", 'STOCK_NAME_FETCH_FAILED', 500)
+        
+        # 현재가 조회 (선택사항)
+        current_price = None
+        try:
+            price_info = stock_monitor.get_stock_price(stock_code)
+            current_price, _, _ = price_info
+        except Exception as e:
+            logger.warning(f"주가 조회 실패 (계속 진행): {stock_code} - {e}")
+        
+        # 기본 손절가 설정 (-5% 기본값)
+        stop_loss = 0
+        if acquisition_price > 0:
+            stop_loss = stock_monitor.calculate_stop_loss(acquisition_price, -5.0)
+        
+        # 종목 추가
+        success = stock_monitor.add_stock(
+            stock_code=stock_code,
+            stock_name=stock_name,
+            target_price=0,  # 기본 목표가 0
+            stop_loss=stop_loss,
+            category=category,
+            acquisition_price=float(acquisition_price) if acquisition_price else 0,
+            alert_settings=None,  # 기본 설정 사용
+            memo=''
+        )
+        
+        if success:
+            result = {
+                'stock_code': stock_code,
+                'stock_name': stock_name,
+                'category': category,
+                'acquisition_price': acquisition_price,
+                'stop_loss': stop_loss,
+                'current_price': current_price,
+                'added_at': datetime.now().isoformat(),
+                'auto_stop_loss_applied': stop_loss > 0
+            }
+            
+            logger.info(f"빠른 종목 추가 성공: {stock_name} ({stock_code}) - 손절가: {stop_loss:,.0f}원")
+            
+            return create_success_response(result)
+        else:
+            return create_error_response("종목 추가에 실패했습니다", 'STOCK_ADD_FAILED', 500)
+            
+    except Exception as e:
+        logger.error(f"빠른 종목 추가 오류: {e}")
+        return create_error_response(str(e), 'QUICK_ADD_ERROR')
+
 if __name__ == '__main__':
     try:
         # Flask 라우트 등록 현황 출력
