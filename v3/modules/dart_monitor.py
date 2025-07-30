@@ -664,6 +664,292 @@ class DartMonitor:
             logger.error(f"DART API 키 검증 중 오류: {e}")
             return False
     
+    def check_dart_api_health(self) -> Dict[str, any]:
+        """
+        DART API 연동 상태 헬스체크
+        
+        Returns:
+            Dict: {
+                'status': str,  # 'healthy', 'error', 'failed'
+                'response_time': float,  # 응답 시간(초)
+                'api_key_valid': bool,  # API 키 유효성
+                'last_check': str,  # 마지막 체크 시간
+                'error_message': str,  # 에러 메시지 (있는 경우)
+                'test_api_url': str  # 테스트에 사용된 URL
+            }
+        """
+        health_result = {
+            'status': 'unknown',
+            'response_time': 0.0,
+            'api_key_valid': False,
+            'last_check': datetime.now().isoformat(),
+            'error_message': '',
+            'test_api_url': f"{DART_API_URL}/list.json"
+        }
+        
+        try:
+            # 1. API 키 유효성 검증
+            health_result['api_key_valid'] = self.validate_dart_api_key()
+            
+            if not health_result['api_key_valid']:
+                health_result['status'] = 'failed'
+                health_result['error_message'] = 'DART API 키가 유효하지 않습니다'
+                return health_result
+            
+            # 2. 테스트 API 호출 (간단한 요청)
+            test_params = {
+                'crtfc_key': DART_API_KEY,
+                'corp_code': '00126380',  # 삼성전자 코드
+                'bgn_de': datetime.now().strftime('%Y%m%d'),
+                'end_de': datetime.now().strftime('%Y%m%d'),
+                'page_no': '1',
+                'page_count': '1'  # 최소한의 데이터만 요청
+            }
+            
+            import time
+            start_time = time.time()
+            
+            # API 요청 (단일 시도, 재시도 없이)
+            response = requests.get(
+                health_result['test_api_url'], 
+                params=test_params, 
+                timeout=REQUEST_TIMEOUT
+            )
+            
+            end_time = time.time()
+            health_result['response_time'] = round(end_time - start_time, 3)
+            
+            # 3. HTTP 상태 코드 확인
+            if response.status_code != 200:
+                health_result['status'] = 'error'
+                health_result['error_message'] = f'HTTP 오류: {response.status_code}'
+                return health_result
+            
+            # 4. JSON 파싱 확인
+            try:
+                data = response.json()
+            except ValueError as e:
+                health_result['status'] = 'error'
+                health_result['error_message'] = f'JSON 파싱 실패: {str(e)}'
+                return health_result
+            
+            # 5. DART API 응답 상태 확인
+            api_status = data.get('status', '')
+            if api_status == '000':  # 성공
+                health_result['status'] = 'healthy'
+                logger.debug(f"DART API 헬스체크 성공: {health_result['response_time']}초")
+            elif api_status == '013':  # 데이터 없음 (정상 상황)
+                health_result['status'] = 'healthy'
+                logger.debug("DART API 상태 정상 (데이터 없음)")
+            else:
+                health_result['status'] = 'error'
+                health_result['error_message'] = f'DART API 오류: {api_status} - {data.get("message", "Unknown error")}'
+            
+        except requests.exceptions.Timeout:
+            health_result['status'] = 'failed'
+            health_result['error_message'] = f'API 요청 타임아웃: {REQUEST_TIMEOUT}초 초과'
+        except requests.exceptions.ConnectionError:
+            health_result['status'] = 'failed'
+            health_result['error_message'] = '네트워크 연결 오류: DART 서버에 연결할 수 없습니다'
+        except Exception as e:
+            health_result['status'] = 'failed'
+            health_result['error_message'] = f'예상치 못한 오류: {type(e).__name__} - {str(e)}'
+        
+        # 로깅
+        if health_result['status'] == 'healthy':
+            logger.info(f"DART API 헬스체크 성공: {health_result['response_time']}초")
+        else:
+            logger.error(f"DART API 헬스체크 실패: {health_result['error_message']}")
+        
+        return health_result
+    
+    def get_dart_api_status_summary(self) -> Dict[str, any]:
+        """
+        DART API 상태 요약 정보 반환
+        
+        Returns:
+            Dict: API 상태, 설정 정보, 통계 등
+        """
+        try:
+            # 헬스체크 수행
+            health_status = self.check_dart_api_health()
+            
+            # 기본 설정 정보
+            config_info = {
+                'api_url': DART_API_URL,
+                'request_timeout': REQUEST_TIMEOUT,
+                'monitored_companies_count': len(COMPANIES),
+                'keywords_count': len(KEYWORDS),
+                'api_key_configured': bool(DART_API_KEY and DART_API_KEY.strip()),
+                'api_key_length': len(DART_API_KEY) if DART_API_KEY else 0
+            }
+            
+            # 모니터링 대상 기업 목록
+            companies_list = []
+            for corp_code, company_name in COMPANIES.items():
+                companies_list.append({
+                    'corp_code': corp_code,
+                    'company_name': company_name
+                })
+            
+            # 키워드 목록
+            keywords_info = {
+                'or_keywords': KEYWORDS,
+                'and_conditions': KEYWORD_AND_CONDITIONS,
+                'filter_mode': KEYWORD_FILTER_MODE
+            }
+            
+            # 종합 상태 요약
+            summary = {
+                'health_status': health_status,
+                'config_info': config_info,
+                'companies': companies_list,
+                'keywords': keywords_info,
+                'last_updated': datetime.now().isoformat(),
+                'system_ready': (
+                    health_status['status'] == 'healthy' and
+                    config_info['api_key_configured'] and
+                    config_info['monitored_companies_count'] > 0
+                )
+            }
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"DART API 상태 요약 생성 실패: {e}")
+            return {
+                'error': str(e),
+                'last_updated': datetime.now().isoformat(),
+                'system_ready': False
+            }
+    
+    def test_dart_connectivity(self, company_count: int = 3) -> Dict[str, any]:
+        """
+        DART API 연결성 테스트 (여러 기업으로 테스트)
+        
+        Args:
+            company_count (int): 테스트할 기업 수 (기본 3개)
+            
+        Returns:
+            Dict: 테스트 결과 상세 정보
+        """
+        test_result = {
+            'test_started': datetime.now().isoformat(),
+            'total_companies_tested': 0,
+            'successful_requests': 0,
+            'failed_requests': 0,
+            'average_response_time': 0.0,
+            'test_details': [],
+            'overall_status': 'unknown'
+        }
+        
+        try:
+            # 테스트할 기업 선택 (첫 번째부터 company_count개)
+            test_companies = list(COMPANIES.items())[:company_count]
+            test_result['total_companies_tested'] = len(test_companies)
+            
+            total_response_time = 0.0
+            
+            for corp_code, company_name in test_companies:
+                company_test = {
+                    'corp_code': corp_code,
+                    'company_name': company_name,
+                    'status': 'unknown',
+                    'response_time': 0.0,
+                    'error_message': ''
+                }
+                
+                try:
+                    # 테스트 파라미터
+                    test_params = {
+                        'crtfc_key': DART_API_KEY,
+                        'corp_code': corp_code,
+                        'bgn_de': datetime.now().strftime('%Y%m%d'),
+                        'end_de': datetime.now().strftime('%Y%m%d'),
+                        'page_no': '1',
+                        'page_count': '1'
+                    }
+                    
+                    import time
+                    start_time = time.time()
+                    
+                    # API 요청
+                    response = requests.get(
+                        f"{DART_API_URL}/list.json",
+                        params=test_params,
+                        timeout=REQUEST_TIMEOUT
+                    )
+                    
+                    end_time = time.time()
+                    company_test['response_time'] = round(end_time - start_time, 3)
+                    total_response_time += company_test['response_time']
+                    
+                    # 응답 검증
+                    if response.status_code == 200:
+                        data = response.json()
+                        api_status = data.get('status', '')
+                        
+                        if api_status in ['000', '013']:  # 성공 또는 데이터 없음
+                            company_test['status'] = 'success'
+                            test_result['successful_requests'] += 1
+                        else:
+                            company_test['status'] = 'api_error'
+                            company_test['error_message'] = f"API 오류: {api_status}"
+                            test_result['failed_requests'] += 1
+                    else:
+                        company_test['status'] = 'http_error'
+                        company_test['error_message'] = f"HTTP 오류: {response.status_code}"
+                        test_result['failed_requests'] += 1
+                        
+                except requests.exceptions.Timeout:
+                    company_test['status'] = 'timeout'
+                    company_test['error_message'] = f'타임아웃: {REQUEST_TIMEOUT}초 초과'
+                    test_result['failed_requests'] += 1
+                except requests.exceptions.ConnectionError:
+                    company_test['status'] = 'connection_error'
+                    company_test['error_message'] = '연결 오류'
+                    test_result['failed_requests'] += 1
+                except Exception as e:
+                    company_test['status'] = 'unknown_error'
+                    company_test['error_message'] = str(e)
+                    test_result['failed_requests'] += 1
+                
+                test_result['test_details'].append(company_test)
+                
+                # 요청 간 짧은 대기 (API 레이트 리미트 방지)
+                import time
+                time.sleep(0.5)
+            
+            # 평균 응답 시간 계산
+            if test_result['successful_requests'] > 0:
+                test_result['average_response_time'] = round(
+                    total_response_time / len(test_companies), 3
+                )
+            
+            # 전체 상태 결정
+            success_rate = test_result['successful_requests'] / test_result['total_companies_tested']
+            if success_rate >= 0.8:  # 80% 이상 성공
+                test_result['overall_status'] = 'excellent'
+            elif success_rate >= 0.5:  # 50% 이상 성공
+                test_result['overall_status'] = 'good'
+            elif success_rate > 0:  # 일부 성공
+                test_result['overall_status'] = 'poor'
+            else:  # 전체 실패
+                test_result['overall_status'] = 'failed'
+            
+            test_result['test_completed'] = datetime.now().isoformat()
+            
+            logger.info(f"DART API 연결성 테스트 완료: {test_result['successful_requests']}/{test_result['total_companies_tested']} 성공")
+            
+            return test_result
+            
+        except Exception as e:
+            logger.error(f"DART API 연결성 테스트 실패: {e}")
+            test_result['overall_status'] = 'error'
+            test_result['error'] = str(e)
+            test_result['test_completed'] = datetime.now().isoformat()
+            return test_result
+    
     def make_api_request_with_retry(self, url: str, params: dict, max_retries: int = 3) -> Optional[dict]:
         """재시도 로직이 포함된 API 요청"""
         for attempt in range(max_retries):

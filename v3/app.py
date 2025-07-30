@@ -2527,6 +2527,169 @@ def quick_add_stock():
         logger.error(f"빠른 종목 추가 오류: {e}")
         return create_error_response(str(e), 'QUICK_ADD_ERROR')
 
+# === DART API 상태 체크 API 엔드포인트 ===
+
+@app.route('/api/v1/dart/health', methods=['GET'])
+@login_required
+@performance_monitor('DART API 헬스체크')
+@api_request_logger
+def check_dart_health():
+    """DART API 연동 상태 헬스체크"""
+    try:
+        from modules.dart_monitor import dart_monitor
+        
+        # 헬스체크 수행
+        health_result = dart_monitor.check_dart_api_health()
+        
+        # 성공 여부에 따른 HTTP 상태 코드 결정
+        if health_result['status'] == 'healthy':
+            status_code = 200
+        elif health_result['status'] == 'error':
+            status_code = 503  # Service Unavailable
+        else:  # 'failed'
+            status_code = 500  # Internal Server Error
+        
+        return create_success_response(health_result), status_code
+        
+    except Exception as e:
+        logger.error(f"DART API 헬스체크 오류: {e}")
+        return create_error_response(str(e), 'DART_HEALTH_CHECK_ERROR'), 500
+
+@app.route('/api/v1/dart/status', methods=['GET'])
+@login_required
+@performance_monitor('DART API 상태 요약')
+@api_request_logger
+def get_dart_status():
+    """DART API 상태 요약 정보 조회"""
+    try:
+        from modules.dart_monitor import dart_monitor
+        
+        # 상태 요약 정보 조회
+        status_summary = dart_monitor.get_dart_api_status_summary()
+        
+        # 시스템 준비 상태에 따른 HTTP 상태 코드
+        if 'error' in status_summary:
+            status_code = 500
+        elif status_summary.get('system_ready', False):
+            status_code = 200
+        else:
+            status_code = 503  # Service Unavailable
+        
+        return create_success_response(status_summary), status_code
+        
+    except Exception as e:
+        logger.error(f"DART API 상태 요약 오류: {e}")
+        return create_error_response(str(e), 'DART_STATUS_ERROR'), 500
+
+@app.route('/api/v1/dart/test', methods=['POST'])
+@login_required
+@performance_monitor('DART API 연결성 테스트')
+@api_request_logger
+def test_dart_connectivity():
+    """DART API 연결성 테스트 (여러 기업으로 테스트)"""
+    try:
+        data = request.get_json() or {}
+        company_count = data.get('company_count', 3)
+        
+        # 기업 수 검증
+        if not isinstance(company_count, int) or company_count < 1 or company_count > 10:
+            return create_error_response(
+                "테스트할 기업 수는 1-10 사이여야 합니다", 
+                'INVALID_COMPANY_COUNT', 400
+            )
+        
+        from modules.dart_monitor import dart_monitor
+        
+        # 연결성 테스트 수행
+        test_result = dart_monitor.test_dart_connectivity(company_count)
+        
+        # 전체 상태에 따른 HTTP 상태 코드
+        if test_result['overall_status'] in ['excellent', 'good']:
+            status_code = 200
+        elif test_result['overall_status'] == 'poor':
+            status_code = 206  # Partial Content
+        else:  # 'failed', 'error'
+            status_code = 503  # Service Unavailable
+        
+        return create_success_response(test_result), status_code
+        
+    except Exception as e:
+        logger.error(f"DART API 연결성 테스트 오류: {e}")
+        return create_error_response(str(e), 'DART_CONNECTIVITY_TEST_ERROR'), 500
+
+@app.route('/api/v1/dart/config', methods=['GET'])
+@login_required
+@performance_monitor('DART 설정 조회')
+@api_request_logger
+def get_dart_config():
+    """DART 모니터링 설정 정보 조회"""
+    try:
+        from modules.config import (
+            DART_API_URL, DART_API_KEY, REQUEST_TIMEOUT, 
+            COMPANIES, KEYWORDS, KEYWORD_AND_CONDITIONS, KEYWORD_FILTER_MODE
+        )
+        
+        config_info = {
+            'api_settings': {
+                'api_url': DART_API_URL,
+                'api_key_configured': bool(DART_API_KEY and DART_API_KEY.strip()),
+                'api_key_length': len(DART_API_KEY) if DART_API_KEY else 0,
+                'request_timeout': REQUEST_TIMEOUT
+            },
+            'monitoring_settings': {
+                'monitored_companies_count': len(COMPANIES),
+                'companies': [
+                    {'corp_code': code, 'company_name': name} 
+                    for code, name in COMPANIES.items()
+                ],
+                'keywords_count': len(KEYWORDS),
+                'keywords': KEYWORDS,
+                'and_conditions': KEYWORD_AND_CONDITIONS,
+                'filter_mode': KEYWORD_FILTER_MODE
+            },
+            'last_updated': datetime.now().isoformat()
+        }
+        
+        return create_success_response(config_info)
+        
+    except Exception as e:
+        logger.error(f"DART 설정 조회 오류: {e}")
+        return create_error_response(str(e), 'DART_CONFIG_ERROR')
+
+@app.route('/api/v1/dart/trigger-check', methods=['POST'])
+@login_required
+@performance_monitor('DART 공시 수동 체크')
+@api_request_logger
+def trigger_dart_check():
+    """DART 공시 수동 체크 트리거"""
+    try:
+        data = request.get_json() or {}
+        target_date = data.get('target_date')  # YYYYMMDD 형식, None이면 오늘
+        
+        from modules.dart_monitor import dart_monitor
+        
+        # 수동 공시 체크 수행
+        new_disclosures = dart_monitor.check_new_disclosures(target_date)
+        
+        result = {
+            'target_date': target_date or datetime.now().strftime('%Y%m%d'),
+            'new_disclosures_count': len(new_disclosures),
+            'new_disclosures': new_disclosures,
+            'checked_at': datetime.now().isoformat()
+        }
+        
+        # 새로운 공시가 있는지에 따른 로깅
+        if new_disclosures:
+            logger.info(f"수동 DART 체크: {len(new_disclosures)}건의 새로운 공시 발견")
+        else:
+            logger.info("수동 DART 체크: 새로운 공시 없음")
+        
+        return create_success_response(result)
+        
+    except Exception as e:
+        logger.error(f"DART 공시 수동 체크 오류: {e}")
+        return create_error_response(str(e), 'DART_MANUAL_CHECK_ERROR')
+
 if __name__ == '__main__':
     try:
         # Flask 라우트 등록 현황 출력
