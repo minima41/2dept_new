@@ -349,6 +349,22 @@ const api = {
         }
     },
     
+    // 종목 정보 조회
+    async getStockInfo(stockCode) {
+        try {
+            const response = await fetch(`${API_BASE}/api/v1/stocks/info/${stockCode}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            console.log('종목 정보 조회 성공:', data);
+            return data;
+        } catch (error) {
+            console.error('종목 정보 조회 실패:', error);
+            throw error;
+        }
+    },
+    
     // 종목 추가
     async addStock(stockData) {
         try {
@@ -1703,6 +1719,25 @@ function setupEventListeners() {
         }
     });
     
+    // 종목 조회 버튼 이벤트
+    document.getElementById('lookup-stock')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await handleStockLookup();
+    });
+    
+    // 손절가 설정 라디오 버튼 이벤트
+    document.querySelectorAll('input[name="stop-loss-option"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            updateStopLossCalculation();
+        });
+    });
+    
+    // 취득가 입력 시 손절가 자동 계산
+    document.getElementById('acquisition-price')?.addEventListener('input', () => {
+        updateStopLossCalculation();
+    });
+    
+    
     // 삭제 버튼 이벤트 (이벤트 위임 사용)
     document.addEventListener('click', async (e) => {
         if (e.target.closest('.delete-stock-btn')) {
@@ -2340,6 +2375,63 @@ async function handleDeleteCompany(companyCode, companyName) {
     } catch (error) {
         console.error('기업 삭제 중 오류:', error);
         ui.showToast(`기업 삭제 실패: ${error.message}`, 'error');
+    }
+}
+
+// 종목 조회 처리 함수
+async function handleStockLookup() {
+    const stockCodeInput = document.getElementById('stock-code');
+    const stockNameInput = document.getElementById('stock-name');
+    const currentPriceInput = document.getElementById('current-price');
+    const validationSpan = document.getElementById('stock-code-validation');
+    
+    const stockCode = stockCodeInput.value.trim();
+    
+    // 종목코드 유효성 검사
+    if (!stockCode) {
+        ui.showToast('종목코드를 입력해주세요.', 'warning');
+        stockCodeInput.focus();
+        return;
+    }
+    
+    if (!/^\d{6}$/.test(stockCode)) {
+        validationSpan.textContent = '종목코드는 6자리 숫자여야 합니다.';
+        validationSpan.className = 'field-validation error';
+        stockCodeInput.focus();
+        return;
+    }
+    
+    try {
+        // 로딩 상태 표시
+        ui.showToast('종목 정보를 조회하고 있습니다...', 'info');
+        
+        // API 호출
+        const result = await api.getStockInfo(stockCode);
+        
+        if (result && result.success) {
+            // 성공시 폼에 데이터 채우기
+            stockNameInput.value = result.stock_name || '';
+            currentPriceInput.value = result.current_price || '';
+            
+            // 유효성 검사 메시지 제거
+            validationSpan.textContent = '';
+            validationSpan.className = 'field-validation';
+            
+            ui.showToast(`종목 정보를 성공적으로 불러왔습니다: ${result.stock_name}`, 'success');
+            
+            console.log('종목 조회 성공:', result);
+        } else {
+            throw new Error(result?.error || '종목 정보를 찾을 수 없습니다.');
+        }
+        
+    } catch (error) {
+        console.error('종목 조회 실패:', error);
+        
+        // 에러 메시지 표시
+        validationSpan.textContent = `조회 실패: ${error.message}`;
+        validationSpan.className = 'field-validation error';
+        
+        ui.showToast(`종목 조회 실패: ${error.message}`, 'error');
     }
 }
 

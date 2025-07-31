@@ -25,7 +25,8 @@ from modules.config import (
     STOCK_MARKET_OPEN_TIME,
     STOCK_MARKET_CLOSE_TIME,
     LOG_LEVEL,
-    LOGS_DIR
+    LOGS_DIR,
+    DATA_DIR  # 추가
 )
 from modules.dart_monitor import check_new_disclosures, send_dart_notifications
 from modules.stock_monitor import update_all_stocks, get_monitoring_stocks, stock_monitor
@@ -801,7 +802,7 @@ def admin_update_user_status(user_id):
 # === API 엔드포인트 ===
 
 @app.route('/')
-@login_required
+@login_required  # 복원
 def index():
     """메인 페이지"""
     return send_from_directory('static', 'index.html')
@@ -858,50 +859,24 @@ def get_stocks():
         # 강제 새로고침 파라미터 확인
         force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
         
-        # 메타데이터와 함께 주식 데이터 로드
-        try:
-            with open(os.path.join(DATA_DIR, 'monitoring_stocks.json'), 'r', encoding='utf-8') as f:
-                file_data = json.load(f)
-            
-            # 새로운 형식(메타데이터 포함) 확인
-            if '_metadata' in file_data and 'stocks' in file_data:
-                metadata = file_data['_metadata']
-                stocks = file_data['stocks']
-            else:
-                # 기존 형식인 경우 기본 메타데이터 생성
-                stocks = file_data
-                metadata = {
-                    'last_updated': datetime.now().isoformat(),
-                    'update_count': 0,
-                    'total_stocks': len(stocks),
-                    'enabled_stocks': len([code for code, info in stocks.items() if info.get('enabled', True)]),
-                    'data_version': '1.0'
-                }
-        except (FileNotFoundError, json.JSONDecodeError):
-            # 파일이 없거나 잘못된 경우 빈 데이터 반환
-            stocks = {}
-            metadata = {
-                'last_updated': datetime.now().isoformat(),
-                'update_count': 0,
-                'total_stocks': 0,
-                'enabled_stocks': 0,
-                'data_version': '1.0'
-            }
-        
         # 강제 새로고침이 요청된 경우 주가 업데이트 수행
         if force_refresh:
             try:
                 update_all_stocks()
-                # 업데이트 후 데이터 다시 로드
-                with open(os.path.join(DATA_DIR, 'monitoring_stocks.json'), 'r', encoding='utf-8') as f:
-                    file_data = json.load(f)
-                if '_metadata' in file_data and 'stocks' in file_data:
-                    metadata = file_data['_metadata']
-                    stocks = file_data['stocks']
-                else:
-                    stocks = file_data
             except Exception as e:
                 logger.warning(f"강제 새로고침 실패: {e}")
+        
+        # get_monitoring_stocks() 사용해서 데이터 로드
+        stocks = get_monitoring_stocks()
+        
+        # 메타데이터 생성
+        metadata = {
+            'last_updated': datetime.now().isoformat(),
+            'update_count': 0,
+            'total_stocks': len(stocks),
+            'enabled_stocks': len([code for code, info in stocks.items() if info.get('enabled', True)]),
+            'data_version': '1.0'
+        }        
         
         # JSON 직렬화를 위해 set을 list로 변환
         serializable_stocks = {}
