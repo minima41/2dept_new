@@ -1151,3 +1151,89 @@ window.addEventListener('load', () => {
         setTimeout(initialize, 200);
     }
 });
+
+// dartManager 객체 정의 - script.js와의 호환성을 위해
+window.dartManager = {
+    // DART 기능 초기화
+    initialize: function() {
+        console.log('dartManager.initialize() 호출됨 - SPA 탭 전환 대응');
+        
+        // DOM 요소들이 준비되었는지 확인
+        const dartContent = document.getElementById('dart-content');
+        if (!dartContent || dartContent.style.display === 'none') {
+            console.log('DART 탭이 아직 활성화되지 않음, 잠시 후 재시도...');
+            setTimeout(() => this.initialize(), 300);
+            return;
+        }
+        
+        // 기존 타이머가 있다면 정리
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        
+        // DOM 요소 재초기화
+        if (!initializeElements()) {
+            console.warn('DOM 요소 초기화 실패 - 다시 시도합니다');
+            setTimeout(() => this.initialize(), 500);
+            return;
+        }
+        
+        // 이벤트 리스너 설정
+        setupEventListeners();
+        
+        // DART 데이터 로드 및 초기화 실행
+        this.loadAllData();
+    },
+    
+    // 모든 DART 데이터 로드
+    loadAllData: async function() {
+        try {
+            console.log('DART 데이터 전체 로드 시작...');
+            
+            // 날짜 필터 기본값 설정
+            if (elements.dateFilter) {
+                const today = new Date().toISOString().split('T')[0];
+                elements.dateFilter.value = today;
+            }
+            
+            // 병렬로 데이터 로드
+            const loadPromises = [
+                updateSystemStatus().catch(err => console.error('시스템 상태 로드 실패:', err)),
+                loadCompanies().catch(err => console.error('기업 목록 로드 실패:', err)),
+                loadKeywords().catch(err => console.error('키워드 로드 실패:', err)),
+                loadProcessedIds().catch(err => console.error('처리된 ID 로드 실패:', err)),
+                loadDartLogs().catch(err => console.error('DART 로그 로드 실패:', err))
+            ];
+            
+            await Promise.allSettled(loadPromises);
+            
+            // 공시 목록 로드 (시간이 오래 걸릴 수 있으므로 별도 처리)
+            await loadDisclosures().catch(err => console.error('공시 목록 로드 실패:', err));
+            
+            // 주기적 업데이트 설정 (30초마다)
+            refreshInterval = setInterval(async () => {
+                try {
+                    await updateSystemStatus();
+                    await loadDartLogs();
+                } catch (error) {
+                    console.error('주기적 상태 업데이트 실패:', error);
+                }
+            }, 30000);
+            
+            console.log('DART 데이터 로드 완료');
+            
+        } catch (error) {
+            console.error('DART 데이터 로드 중 오류:', error);
+        }
+    },
+    
+    // 개별 기능 호출을 위한 메서드들
+    loadCompanies: loadCompanies,
+    loadKeywords: loadKeywords,
+    loadDisclosures: loadDisclosures,
+    loadDartLogs: loadDartLogs,
+    updateSystemStatus: updateSystemStatus
+};
+
+console.log('dartManager 객체가 전역으로 설정되었습니다.');
